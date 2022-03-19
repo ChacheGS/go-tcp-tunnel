@@ -15,9 +15,9 @@ import (
 
 	"golang.org/x/net/http2"
 
-	"github.com/mmatczuk/go-http-tunnel"
-	"github.com/mmatczuk/go-http-tunnel/id"
-	"github.com/mmatczuk/go-http-tunnel/log"
+	tunnel "github.com/jlandowner/go-http-tunnel"
+	"github.com/jlandowner/go-http-tunnel/id"
+	"github.com/jlandowner/go-http-tunnel/log"
 )
 
 func main() {

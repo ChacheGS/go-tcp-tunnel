@@ -1,14 +1,15 @@
-module github.com/mmatczuk/go-http-tunnel
+module github.com/jlandowner/go-http-tunnel
 
-go 1.13
+go 1.17
 
 require (
 	github.com/calmh/luhn v2.0.0+incompatible
-	github.com/cenkalti/backoff v2.1.1+incompatible
-	github.com/felixge/tcpkeepalive v0.0.0-20160804073959-5bb0b2dea91e
-	github.com/golang/mock v1.2.0
+	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/felixge/tcpkeepalive v0.0.0-20220224101934-f56176a53a1b
+	github.com/golang/mock v1.6.0
 	github.com/inconshreveable/go-vhost v0.0.0-20160627193104-06d84117953b
-	golang.org/x/net v0.0.0-20171123081856-c7086645de24
-	golang.org/x/text v0.1.1-0.20171102192421-88f656faf3f3 // indirect
-	gopkg.in/yaml.v2 v2.2.2
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+	gopkg.in/yaml.v2 v2.4.0
 )
+
+require golang.org/x/text v0.3.7 // indirect

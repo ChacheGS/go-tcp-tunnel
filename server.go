@@ -19,9 +19,9 @@ import (
 	"golang.org/x/net/http2"
 
 	"github.com/inconshreveable/go-vhost"
-	"github.com/mmatczuk/go-http-tunnel/id"
-	"github.com/mmatczuk/go-http-tunnel/log"
-	"github.com/mmatczuk/go-http-tunnel/proto"
+	"github.com/jlandowner/go-http-tunnel/id"
+	"github.com/jlandowner/go-http-tunnel/log"
+	"github.com/jlandowner/go-http-tunnel/proto"
 )
 
 // ServerConfig defines configuration for the Server.
