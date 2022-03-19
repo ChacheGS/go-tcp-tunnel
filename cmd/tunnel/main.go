@@ -16,7 +16,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/cenkalti/backoff"
+	backoff "github.com/cenkalti/backoff/v4"
 	tunnel "github.com/jlandowner/go-http-tunnel"
 	"github.com/jlandowner/go-http-tunnel/id"
 	"github.com/jlandowner/go-http-tunnel/log"
