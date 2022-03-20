@@ -2,7 +2,6 @@
 // Use of this source code is governed by an AGPL-style
 // license that can be found in the LICENSE file.
 
-//go:build !windows
 // +build !windows
 
 package tunnel
@@ -10,6 +9,8 @@ package tunnel
 import (
 	"net"
 	"time"
+
+	"github.com/felixge/tcpkeepalive"
 )
 
 var (
@@ -24,12 +25,6 @@ var (
 	DefaultKeepAliveInterval = 5 * time.Second
 )
 
-func keepAlive(conn *net.TCPConn) error {
-	if err := conn.SetKeepAlive(true); err != nil {
-		return err
-	}
-	if err := conn.SetKeepAlivePeriod(DefaultKeepAliveInterval); err != nil {
-		return err
-	}
-	return nil
+func keepAlive(conn net.Conn) error {
+	return tcpkeepalive.SetKeepAlive(conn, DefaultKeepAliveIdleTime, DefaultKeepAliveCount, DefaultKeepAliveInterval)
 }
