@@ -14,7 +14,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -105,23 +104,11 @@ func makeTunnelServer(t testing.TB) *tunnel.Server {
 }
 
 func makeTunnelClient(t testing.TB, serverAddr string, httpLocalAddr, httpAddr, tcpLocalAddr, tcpAddr net.Addr) *tunnel.Client {
-	httpProxy := tunnel.NewMultiHTTPProxy(map[string]*url.URL{
-		"localhost:" + port(httpLocalAddr): {
-			Scheme: "http",
-			Host:   "127.0.0.1:" + port(httpAddr),
-		},
-	}, log.NewStdLogger())
-
 	tcpProxy := tunnel.NewMultiTCPProxy(map[string]string{
 		port(tcpLocalAddr): tcpAddr.String(),
 	}, log.NewStdLogger())
 
 	tunnels := map[string]*proto.Tunnel{
-		proto.HTTP: {
-			Protocol: proto.HTTP,
-			Host:     "localhost",
-			Auth:     "user:password",
-		},
 		proto.TCP: {
 			Protocol: proto.TCP,
 			Addr:     tcpLocalAddr.String(),
@@ -133,8 +120,7 @@ func makeTunnelClient(t testing.TB, serverAddr string, httpLocalAddr, httpAddr, 
 		TLSClientConfig: tlsConfig(),
 		Tunnels:         tunnels,
 		Proxy: tunnel.Proxy(tunnel.ProxyFuncs{
-			HTTP: httpProxy.Proxy,
-			TCP:  tcpProxy.Proxy,
+			TCP: tcpProxy.Proxy,
 		}),
 		Logger: log.NewStdLogger(),
 	})

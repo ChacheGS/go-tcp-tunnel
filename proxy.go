@@ -16,8 +16,6 @@ type ProxyFunc func(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage)
 
 // ProxyFuncs is a collection of ProxyFunc.
 type ProxyFuncs struct {
-	// HTTP is custom implementation of HTTP proxing.
-	HTTP ProxyFunc
 	// TCP is custom implementation of TCP proxing.
 	TCP ProxyFunc
 }
@@ -27,9 +25,7 @@ func Proxy(p ProxyFuncs) ProxyFunc {
 	return func(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
 		var f ProxyFunc
 		switch msg.ForwardedProto {
-		case proto.HTTP, proto.HTTPS:
-			f = p.HTTP
-		case proto.TCP, proto.TCP4, proto.TCP6, proto.UNIX:
+		case proto.TCP, proto.TCP4, proto.TCP6:
 			f = p.TCP
 		}
 

@@ -25,14 +25,9 @@ const (
 
 // Known protocol types.
 const (
-	HTTP  = "http"
-	HTTPS = "https"
-
 	TCP  = "tcp"
 	TCP4 = "tcp4"
 	TCP6 = "tcp6"
-	UNIX = "unix"
-	SNI  = "sni"
 )
 
 // ControlMessage is sent from server to client before streaming data. It's

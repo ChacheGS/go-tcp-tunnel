@@ -35,8 +35,6 @@ type BackoffConfig struct {
 type Tunnel struct {
 	Protocol   string `yaml:"proto,omitempty"`
 	Addr       string `yaml:"addr,omitempty"`
-	Auth       string `yaml:"auth,omitempty"`
-	Host       string `yaml:"host,omitempty"`
 	RemoteAddr string `yaml:"remote_addr,omitempty"`
 }
 
@@ -80,16 +78,8 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 
 	for name, t := range c.Tunnels {
 		switch t.Protocol {
-		case proto.HTTP:
-			if err := validateHTTP(t); err != nil {
-				return nil, fmt.Errorf("%s %s", name, err)
-			}
 		case proto.TCP, proto.TCP4, proto.TCP6:
 			if err := validateTCP(t); err != nil {
-				return nil, fmt.Errorf("%s %s", name, err)
-			}
-		case proto.SNI:
-			if err := validateSNI(t); err != nil {
 				return nil, fmt.Errorf("%s %s", name, err)
 			}
 		default:
@@ -98,27 +88,6 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 	}
 
 	return &c, nil
-}
-
-func validateHTTP(t *Tunnel) error {
-	var err error
-	if t.Host == "" {
-		return fmt.Errorf("host: missing")
-	}
-	if t.Addr == "" {
-		return fmt.Errorf("addr: missing")
-	}
-	if t.Addr, err = normalizeURL(t.Addr); err != nil {
-		return fmt.Errorf("addr: %s", err)
-	}
-
-	// unexpected
-
-	if t.RemoteAddr != "" {
-		return fmt.Errorf("remote_addr: unexpected")
-	}
-
-	return nil
 }
 
 func validateTCP(t *Tunnel) error {
@@ -131,39 +100,6 @@ func validateTCP(t *Tunnel) error {
 	}
 	if t.Addr, err = normalizeAddress(t.Addr); err != nil {
 		return fmt.Errorf("addr: %s", err)
-	}
-
-	// unexpected
-
-	if t.Host != "" {
-		return fmt.Errorf("host: unexpected")
-	}
-	if t.Auth != "" {
-		return fmt.Errorf("auth: unexpected")
-	}
-
-	return nil
-}
-
-func validateSNI(t *Tunnel) error {
-	var err error
-	if t.Host == "" {
-		return fmt.Errorf("host: missing")
-	}
-	if t.Addr == "" {
-		return fmt.Errorf("addr: missing")
-	}
-	if t.Addr, err = normalizeAddress(t.Addr); err != nil {
-		return fmt.Errorf("addr: %s", err)
-	}
-
-	// unexpected
-
-	if t.RemoteAddr != "" {
-		return fmt.Errorf("remote_addr: unexpected")
-	}
-	if t.Auth != "" {
-		return fmt.Errorf("auth: unexpected")
 	}
 
 	return nil

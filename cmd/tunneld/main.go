@@ -42,7 +42,6 @@ func main() {
 	// setup server
 	server, err := tunnel.NewServer(&tunnel.ServerConfig{
 		Addr:          opts.tunnelAddr,
-		SNIAddr:       opts.sniAddr,
 		AutoSubscribe: autoSubscribe,
 		TLSConfig:     tlsconf,
 		Logger:        logger,
@@ -66,17 +65,17 @@ func main() {
 	}
 
 	// start HTTP
-	if opts.httpAddr != "" {
-		go func() {
-			logger.Log(
-				"level", 1,
-				"action", "start http",
-				"addr", opts.httpAddr,
-			)
+	// if opts.httpAddr != "" {
+	// 	go func() {
+	// 		logger.Log(
+	// 			"level", 1,
+	// 			"action", "start http",
+	// 			"addr", opts.httpAddr,
+	// 		)
 
-			fatal("failed to start HTTP: %s", http.ListenAndServe(opts.httpAddr, server))
-		}()
-	}
+	// 		fatal("failed to start HTTP: %s", http.ListenAndServe(opts.httpAddr, server))
+	// 	}()
+	// }
 
 	// start HTTPS
 	if opts.httpsAddr != "" {
