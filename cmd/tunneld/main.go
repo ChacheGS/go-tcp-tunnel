@@ -9,11 +9,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"strings"
-
-	"golang.org/x/net/http2"
 
 	tunnel "github.com/jlandowner/go-http-tunnel"
 	"github.com/jlandowner/go-http-tunnel/id"
@@ -78,23 +75,23 @@ func main() {
 	// }
 
 	// start HTTPS
-	if opts.httpsAddr != "" {
-		go func() {
-			logger.Log(
-				"level", 1,
-				"action", "start https",
-				"addr", opts.httpsAddr,
-			)
+	// if opts.httpsAddr != "" {
+	// 	go func() {
+	// 		logger.Log(
+	// 			"level", 1,
+	// 			"action", "start https",
+	// 			"addr", opts.httpsAddr,
+	// 		)
 
-			s := &http.Server{
-				Addr:    opts.httpsAddr,
-				Handler: server,
-			}
-			http2.ConfigureServer(s, nil)
+	// 		s := &http.Server{
+	// 			Addr:    opts.httpsAddr,
+	// 			Handler: server,
+	// 		}
+	// 		http2.ConfigureServer(s, nil)
 
-			fatal("failed to start HTTPS: %s", s.ListenAndServeTLS(opts.tlsCrt, opts.tlsKey))
-		}()
-	}
+	// 		fatal("failed to start HTTPS: %s", s.ListenAndServeTLS(opts.tlsCrt, opts.tlsKey))
+	// 	}()
+	// }
 
 	server.Start()
 }

@@ -363,7 +363,7 @@ func (s *Server) notifyError(serverError error, identifier id.ID) {
 // a tunnel cannot be added whole batch is reverted.
 func (s *Server) addTunnels(tunnels map[string]*proto.Tunnel, identifier id.ID) error {
 	i := &RegistryItem{
-		Hosts:     []*HostAuth{},
+		Hosts:     []string{},
 		Listeners: []net.Listener{},
 	}
 
@@ -480,80 +480,6 @@ func (s *Server) listen(l net.Listener, identifier id.ID) {
 	}
 }
 
-// ServeHTTP proxies http connection to the client.
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	resp, err := s.RoundTrip(r)
-	if err == errUnauthorised {
-		w.Header().Set("WWW-Authenticate", "Basic realm=\"User Visible Realm\"")
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-	if err != nil {
-		s.logger.Log(
-			"level", 0,
-			"action", "round trip failed",
-			"addr", r.RemoteAddr,
-			"host", r.Host,
-			"url", r.URL,
-			"err", err,
-		)
-
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-
-	copyHeader(w.Header(), resp.Header)
-	w.WriteHeader(resp.StatusCode)
-
-	transfer(w, resp.Body, log.NewContext(s.logger).With(
-		"dir", "client to user",
-		"dst", r.RemoteAddr,
-		"src", r.Host,
-	))
-}
-
-// RoundTrip is http.RoundTriper implementation.
-func (s *Server) RoundTrip(r *http.Request) (*http.Response, error) {
-	identifier, auth, ok := s.Subscriber(r.Host)
-	if !ok {
-		return nil, errClientNotSubscribed
-	}
-
-	outr := r.WithContext(r.Context())
-	if r.ContentLength == 0 {
-		outr.Body = nil // Issue 16036: nil Body for http.Transport retries
-	}
-	outr.Header = cloneHeader(r.Header)
-
-	if auth != nil {
-		user, password, _ := r.BasicAuth()
-		if auth.User != user || auth.Password != password {
-			return nil, errUnauthorised
-		}
-		outr.Header.Del("Authorization")
-	}
-
-	setXForwardedFor(outr.Header, r.RemoteAddr)
-
-	scheme := r.URL.Scheme
-	if scheme == "" {
-		scheme = "https"
-	}
-	if r.Header.Get("X-Forwarded-Host") == "" {
-		outr.Header.Set("X-Forwarded-Host", r.Host)
-		outr.Header.Set("X-Forwarded-Proto", scheme)
-	}
-
-	msg := &proto.ControlMessage{
-		Action:         proto.ActionProxy,
-		ForwardedHost:  r.Host,
-		ForwardedProto: scheme,
-	}
-
-	return s.proxyHTTP(identifier, outr, msg)
-}
-
 func (s *Server) proxyConn(identifier id.ID, conn net.Conn, msg *proto.ControlMessage) error {
 	s.logger.Log(
 		"level", 2,
@@ -612,67 +538,6 @@ func (s *Server) proxyConn(identifier id.ID, conn net.Conn, msg *proto.ControlMe
 	)
 
 	return nil
-}
-
-func (s *Server) proxyHTTP(identifier id.ID, r *http.Request, msg *proto.ControlMessage) (*http.Response, error) {
-	s.logger.Log(
-		"level", 2,
-		"action", "proxy HTTP",
-		"identifier", identifier,
-		"ctrlMsg", msg,
-	)
-
-	pr, pw := io.Pipe()
-	defer pr.Close()
-	defer pw.Close()
-
-	req, err := s.connectRequest(identifier, msg, pr)
-	if err != nil {
-		return nil, fmt.Errorf("proxy request error: %s", err)
-	}
-
-	go func() {
-		cw := &countWriter{pw, 0}
-		err := r.Write(cw)
-		if err != nil {
-			s.logger.Log(
-				"level", 0,
-				"msg", "proxy error",
-				"identifier", identifier,
-				"ctrlMsg", msg,
-				"err", err,
-			)
-		}
-
-		s.logger.Log(
-			"level", 3,
-			"action", "transferred",
-			"identifier", identifier,
-			"bytes", cw.count,
-			"dir", "user to client",
-			"dst", r.Host,
-			"src", r.RemoteAddr,
-		)
-
-		if r.Body != nil {
-			r.Body.Close()
-		}
-	}()
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("io error: %s", err)
-	}
-
-	s.logger.Log(
-		"level", 2,
-		"action", "proxy HTTP done",
-		"identifier", identifier,
-		"ctrlMsg", msg,
-		"status code", resp.StatusCode,
-	)
-
-	return resp, nil
 }
 
 // connectRequest creates HTTP request to client with a given identifier having

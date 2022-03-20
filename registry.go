@@ -16,19 +16,12 @@ import (
 // RegistryItem holds information about hosts and listeners associated with a
 // client.
 type RegistryItem struct {
-	Hosts     []*HostAuth
+	Hosts     []string
 	Listeners []net.Listener
-}
-
-// HostAuth holds host and authentication info.
-type HostAuth struct {
-	Host string
-	Auth *Auth
 }
 
 type hostInfo struct {
 	identifier id.ID
-	auth       *Auth
 }
 
 type registry struct {
@@ -79,16 +72,16 @@ func (r *registry) IsSubscribed(identifier id.ID) bool {
 }
 
 // Subscriber returns client identifier assigned to given host.
-func (r *registry) Subscriber(hostPort string) (id.ID, *Auth, bool) {
+func (r *registry) Subscriber(hostPort string) (id.ID, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	h, ok := r.hosts[trimPort(hostPort)]
 	if !ok {
-		return id.ID{}, nil, false
+		return id.ID{}, false
 	}
 
-	return h.identifier, h.auth, ok
+	return h.identifier, ok
 }
 
 // Unsubscribe removes client from registry and returns it's RegistryItem.
@@ -109,7 +102,7 @@ func (r *registry) Unsubscribe(identifier id.ID) *RegistryItem {
 
 	if i.Hosts != nil {
 		for _, h := range i.Hosts {
-			delete(r.hosts, h.Host)
+			delete(r.hosts, h)
 		}
 	}
 
@@ -138,18 +131,14 @@ func (r *registry) set(i *RegistryItem, identifier id.ID) error {
 
 	if i.Hosts != nil {
 		for _, h := range i.Hosts {
-			if h.Auth != nil && h.Auth.User == "" {
-				return fmt.Errorf("missing auth user")
-			}
-			if _, ok := r.hosts[trimPort(h.Host)]; ok {
-				return fmt.Errorf("host %q is occupied", h.Host)
+			if _, ok := r.hosts[trimPort(h)]; ok {
+				return fmt.Errorf("host %q is occupied", h)
 			}
 		}
 
 		for _, h := range i.Hosts {
-			r.hosts[trimPort(h.Host)] = &hostInfo{
+			r.hosts[trimPort(h)] = &hostInfo{
 				identifier: identifier,
-				auth:       h.Auth,
 			}
 		}
 	}
@@ -176,7 +165,7 @@ func (r *registry) clear(identifier id.ID) *RegistryItem {
 
 	if i.Hosts != nil {
 		for _, h := range i.Hosts {
-			delete(r.hosts, trimPort(h.Host))
+			delete(r.hosts, trimPort(h))
 		}
 	}
 
