@@ -172,7 +172,7 @@ func (c *Client) dial() (net.Conn, error) {
 			conn, err = d.Dial(network, addr)
 
 			if err == nil {
-				err = keepAlive(conn)
+				err = keepAlive(conn.(*net.TCPConn))
 			}
 			if err == nil {
 				conn = tls.Client(conn, tlsConfig)

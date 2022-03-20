@@ -208,7 +208,7 @@ func (s *Server) Start() {
 			continue
 		}
 
-		if err := keepAlive(conn); err != nil {
+		if err := keepAlive(conn.(*net.TCPConn)); err != nil {
 			s.logger.Log(
 				"level", 0,
 				"msg", "TCP keepalive for control connection failed",
@@ -530,11 +530,11 @@ func (s *Server) listen(l net.Listener, identifier id.ID) {
 		tlsConn, ok := conn.(*vhost.TLSConn)
 		if ok {
 			msg.ForwardedHost = tlsConn.Host()
-			err = keepAlive(tlsConn.Conn)
+			err = keepAlive(tlsConn.Conn.(*net.TCPConn))
 
 		} else {
 			msg.ForwardedHost = l.Addr().String()
-			err = keepAlive(conn)
+			err = keepAlive(conn.(*net.TCPConn))
 		}
 
 		if err != nil {
