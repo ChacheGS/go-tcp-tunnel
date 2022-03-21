@@ -1,171 +1,60 @@
-# Go HTTP tunnel [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](http://godoc.org/github.com/jlandowner/go-http-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/jlandowner/go-http-tunnel)](https://goreportcard.com/report/github.com/jlandowner/go-http-tunnel) [![Github All Releases](https://img.shields.io/github/downloads/jlandowner/go-http-tunnel/total.svg)](https://github.com/jlandowner/go-http-tunnel/releases)
+# TCP tunnel [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://pkg.go.dev/github.com/jlandowner/tcptunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/jlandowner/tcptunnel)](https://goreportcard.com/report/github.com/jlandowner/tcptunnel) [![Github All Releases](https://img.shields.io/github/downloads/jlandowner/tcptunnel/total.svg)](https://github.com/jlandowner/tcptunnel/releases)
 
-Go HTTP tunnel is a reverse tunnel based on HTTP/2. It enables you to share your localhost when you don't have a public IP.
+TCP tunnel is a TCP reverse tunnel proxy to expose your private backends behind a firewall to the public.
+The reverse tunnel is based on HTTP/2 with mutual TLS (mTLS). It enables you to share your localhost when you don't have a public IP.
 
 Features:
 
 * TCP proxy
-* Client auto reconnect
-* Client management and eviction
-* Easy to use CLI
+* Secure tunnel
+* Dynamic listeners on server by client commands
 
 Common use cases:
 
+* Exposing your local server behind a firewall to the public
 * Hosting a game server from home
 * Developing webhook integrations
-* Managing IoT devices
 
-## Installation
+## Getting started
 
-Build the latest version.
+TODO
 
-```bash
-$ go get -u github.com/jlandowner/go-http-tunnel/cmd/...
-```
+## Client configuration
 
-Alternatively [download the latest release](https://github.com/jlandowner/go-http-tunnel/releases/latest).
+The tunnel Client requires configuration file, by default it will try reading `tunnel.yml` in your current working directory. If you want to specify other file use `-config` flag.
 
-## Running
+Server do not have any configurations without TLS.
+But Client configuration is propagated to the Server and it configures the server to create TCP listeners and proxies dynamically.
 
-There are two executables:
-
-* `tcptunnel` - the tunnel server, to be run on publicly available host like AWS or GCE
-* `tunnel` - the tunnel client, to be run on your local machine or in your private network
-
-To get help on the command parameters run `tcptunnel -h` or `tunnel -h`.
-
-Tunnel requires TLS certificates for both client and server.
-
-```bash
-$ openssl req -x509 -nodes -newkey rsa:2048 -sha256 -keyout client.key -out client.crt
-$ openssl req -x509 -nodes -newkey rsa:2048 -sha256 -keyout server.key -out server.crt
-```
-
-Run client:
-
-* Install `tunnel` binary
-* Make `.tunnel` directory in your project directory
-* Copy `client.key`, `client.crt` to `.tunnel`
-* Create configuration file `tunnel.yml` in `.tunnel`
-* Start all tunnels
-
-```bash
-$ tunnel -config ./tunnel/tunnel.yml start-all
-```
-
-Run server:
-
-* Install `tcptunnel` binary
-* Make `.tcptunnel` directory
-* Copy `server.key`, `server.crt` to `.tcptunnel`
-* Start tunnel server
-
-```bash
-$ tcptunnel -tlsCrt .tcptunnel/server.crt -tlsKey .tcptunnel/server.key
-```
-
-This will run HTTP server on port `80` and HTTPS (HTTP/2) server on port `443`. If you want to use HTTPS it's recommended to get a properly signed certificate to avoid security warnings.
-
-### Run Server as a Service on Ubuntu using Systemd:
-
-* After completing the steps above successfully, create a new file for your service (you can name it whatever you want, just replace the name below with your chosen name).
-
-``` bash
-$ vim tcptunnel.service
-```
-
-* Add the following configuration to the file
-
-```
-[Unit]
-Description=Go-Http-Tunnel Service
-After=network.target
-After=network-online.target
-
-[Service]
-ExecStart=/path/to/your/tcptunnel -tlsCrt /path/to/your/folder/.tcptunnel/server.crt -tlsKey /path/to/your/folder/.tcptunnel/server.key
-TimeoutSec=30
-Restart=on-failure
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
-```
-
-* Save and exit this file.
-* Move this new file to /etc/systemd/system/
-
-```bash
-$ sudo mv tcptunnel.service /etc/systemd/system/
-```
-
-* Change the file permission to allow it to run.
-
-```bash
-$ sudo chmod u+x /etc/systemd/system/tcptunnel.service
-```
-
-* Start the new service and make sure you don't get any errors, and that your client is able to connect.
-
-```bash
-$ sudo systemctl start tcptunnel.service
-```
-
-* You can stop the service with:
-
-```bash
-$ sudo systemctl stop tcptunnel.service
-```
-
-* Finally, if you want the service to start automatically when the server is rebooted, you need to enable it.
-
-```bash
-$ sudo systemctl enable tcptunnel.service
-```
-
-There are many more options for systemd services, and this is by not means an exhaustive configuration file.
-
-## Configuration
-
-The tunnel client `tunnel` requires configuration file, by default it will try reading `tunnel.yml` in your current working directory. If you want to specify other file use `-config` flag.
-
-Sample configuration that exposes:
-
-* `localhost:8080` as `webui.my-tunnel-host.com`
-* host in private network for ssh connections
-
-looks like this
+Here is a sample configuration:
 
 ```yaml
-    server_addr: SERVER_IP:5223
-    tunnels:
-      webui:
-        proto: http
-        addr: localhost:8080
-        auth: user:password
-        host: webui.my-tunnel-host.com
-      ssh:
-        proto: tcp
-        addr: 192.168.0.5:22
-        remote_addr: 0.0.0.0:22
-      tls:
-  	    proto: sni
-  	    addr: localhost:443
-  	    host: tls.my-tunnel-host.com
+server_addr: SERVER_IP:5223
+tunnels:
+  ssh:
+    proto: tcp
+    addr: 192.168.0.5:22
+  www:
+    proto: tcp
+    addr: localhost:8080
+    remote_addr: 80
 ```
+
+This creates 2 tunnels:
+
+* Server exposes port 22, which proxies to the Client local address `192.168.0.5:22`
+* Server exposes port 80, which proxies to the Client local address `localhost:8080`
 
 Configuration options:
 
-* `server_addr`: server TCP address, i.e. `54.12.12.45:5223`
-* `tls_crt`: path to client TLS certificate, *default:* `client.crt` *in the config file directory*
-* `tls_key`: path to client TLS certificate key, *default:* `client.key` *in the config file directory*
-* `root_ca`: path to trusted root certificate authority pool file, if empty any server certificate is accepted
-*  `tunnels / [name]`
-    * `proto`: tunnel protocol, `http`, `tcp` or `sni`
-    * `addr`: forward traffic to this local port number or network address, for `proto=http` this can be full URL i.e. `https://machine/sub/path/?plus=params`, supports URL schemes `http` and `https`
-    * `auth`: (`proto=http`) (optional) basic authentication credentials to enforce on tunneled requests, format `user:password`
-    * `host`: (`proto=http`, `proto=sni`) hostname to request (requires reserved name and DNS CNAME)
-    * `remote_addr`: (`proto=tcp`) bind the remote TCP address
+* `server_addr`: server's tunnel listener TCP address, i.e. `54.12.12.45:5223`. default port is `5223`
+* `tls_crt`: path to client TLS certificate, *default:* `tls.crt` *in the config file directory*
+* `tls_key`: path to client TLS certificate key, *default:* `tls.key` *in the config file directory*
+* `root_ca`: path to server TLS certificate authority, *default:* `tls.crt` *in the config file directory*
+* `tunnels / [name]`
+    * `proto`: proxy listener protocol, currently only `tcp` can be set
+    * `addr`: forward traffic to this local port number or network address, i.e. `localhost:22`
+    * `remote_addr`: server listener TCP address, *default:* `same as local port`
 * `backoff`
     * `interval`: how long client would wait before redialing the server if connection was lost, exponential backoff initial interval, *default:* `500ms`
     * `multiplier`: interval multiplier if reconnect failed, *default:* `1.5`
@@ -178,17 +67,9 @@ A client opens TLS connection to a server. The server accepts connections from k
 
 The tunnel is based HTTP/2 for speed and security. There is a single TCP connection between client and server and all the proxied connections are multiplexed using HTTP/2.
 
-## Donation
-
-If this project help you reduce time to develop, you can give me a cup of coffee.
-
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=RMM46NAEY7YZ6&lc=US&item_name=go%2dhttp%2dtunnel&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
-
-A GitHub star is always appreciated!
-
 ## License
 
 Copyright (C) 2017 Michał Matczuk
 Copyright (C) 2022 jlandowner
 
-This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/jlandowner/go-http-tunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.
+This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/jlandowner/tcptunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.
