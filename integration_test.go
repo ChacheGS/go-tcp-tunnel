@@ -240,6 +240,5 @@ func tlsConfig() *tls.Config {
 		PreferServerCipherSuites: true,
 		NextProtos:               []string{"h2"},
 	}
-	c.BuildNameToCertificate()
 	return c
 }

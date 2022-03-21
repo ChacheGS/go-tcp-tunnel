@@ -266,7 +266,7 @@ func (s *Server) handleClient(conn net.Conn) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("Status %s", resp.Status)
+		err = fmt.Errorf("status %s", resp.Status)
 		logger.Log(
 			"level", 2,
 			"msg", "handshake failed",
@@ -276,7 +276,7 @@ func (s *Server) handleClient(conn net.Conn) {
 	}
 
 	if resp.ContentLength == 0 {
-		err = fmt.Errorf("Tunnels Content-Legth: 0")
+		err = fmt.Errorf("tunnels Content-Legth: 0")
 		logger.Log(
 			"level", 2,
 			"msg", "handshake failed",
@@ -295,7 +295,7 @@ func (s *Server) handleClient(conn net.Conn) {
 	}
 
 	if len(tunnels) == 0 {
-		err = fmt.Errorf("No tunnels")
+		err = fmt.Errorf("no tunnels")
 		logger.Log(
 			"level", 2,
 			"msg", "handshake failed",
