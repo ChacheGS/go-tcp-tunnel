@@ -53,12 +53,13 @@ config.yaml:
 `
 
 type options struct {
-	config  string
-	tlsCrt  string
-	tlsKey  string
-	rootCA  string
-	command string
-	args    []string
+	config   string
+	tlsCrt   string
+	tlsKey   string
+	rootCA   string
+	command  string
+	args     []string
+	logLevel int
 }
 
 var opts options
@@ -75,12 +76,37 @@ func Command() *flag.FlagSet {
 	cmd.StringVar(&opts.tlsCrt, "tls-crt", "tls.crt", "Path to a TLS certificate file")
 	cmd.StringVar(&opts.tlsKey, "tls-key", "tls.key", "Path to a TLS key file")
 	cmd.StringVar(&opts.rootCA, "ca-crt", "tls.crt", "Path to the trusted certificate chain used for server certificate authentication")
+	cmd.IntVar(&opts.logLevel, "log-level", 1, "Level of messages to log, 0-3")
 
 	return cmd
 }
 
-func Execute(logLevel int) error {
-	logger := log.NewFilterLogger(log.NewStdLogger(), logLevel)
+func CompleteArgs(fs *flag.FlagSet) error {
+	opts.command = fs.Arg(0)
+	switch opts.command {
+	case "id", "list":
+		opts.args = fs.Args()[1:]
+		if len(opts.args) > 0 {
+			return fmt.Errorf("list takes no arguments")
+		}
+	case "start":
+		opts.args = fs.Args()[1:]
+		if len(opts.args) == 0 {
+			return fmt.Errorf("you must specify at least one tunnel to start")
+		}
+	case "start-all":
+		opts.args = fs.Args()[1:]
+		if len(opts.args) > 0 {
+			return fmt.Errorf("start-all takes no arguments")
+		}
+	default:
+		return fmt.Errorf("unknown command %q", opts.command)
+	}
+	return nil
+}
+
+func Execute() error {
+	logger := log.NewFilterLogger(log.NewStdLogger(), opts.logLevel)
 
 	// read configuration file
 	config, err := loadClientConfigFromFile(opts.config)
@@ -124,8 +150,6 @@ func Execute(logLevel int) error {
 			tunnels[arg] = t
 		}
 		config.Tunnels = tunnels
-	default:
-		panic("unexpected command")
 	}
 
 	if len(config.Tunnels) == 0 {

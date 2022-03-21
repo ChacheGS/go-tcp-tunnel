@@ -45,8 +45,7 @@ Bugs:
 `
 
 type globalOptions struct {
-	logLevel int
-	version  bool
+	version bool
 }
 
 var o globalOptions
@@ -58,7 +57,6 @@ func main() {
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, usage2)
 	}
-	flag.IntVar(&o.logLevel, "log-level", 1, "Level of messages to log, 0-3")
 	flag.BoolVar(&o.version, "version", false, "Prints tunnel version")
 	flag.Parse()
 
@@ -76,8 +74,12 @@ func main() {
 		switch args[0] {
 		case "client":
 			clientCmd.Parse(args[1:])
+			if err := client.CompleteArgs(clientCmd); err != nil {
+				clientCmd.Usage()
+				fatal("%v", err)
+			}
 
-			if err := client.Execute(o.logLevel); err != nil {
+			if err := client.Execute(); err != nil {
 				clientCmd.Usage()
 				fatal("%v", err)
 			}
@@ -85,7 +87,7 @@ func main() {
 		case "server":
 			serverCmd.Parse(args[1:])
 
-			if err := server.Execute(o.logLevel); err != nil {
+			if err := server.Execute(); err != nil {
 				serverCmd.Usage()
 				fatal("ERROR: %v", err)
 			}

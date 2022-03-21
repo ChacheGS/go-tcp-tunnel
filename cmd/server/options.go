@@ -46,6 +46,7 @@ type options struct {
 	tlsKey     string
 	clientCA   string
 	clientIDs  string
+	logLevel   int
 }
 
 var opts options
@@ -63,12 +64,13 @@ func Command() *flag.FlagSet {
 	cmd.StringVar(&opts.tlsKey, "tls-key", "tls.key", "Path to a TLS key file")
 	cmd.StringVar(&opts.clientCA, "ca-crt", "tls.crt", "Path to the trusted certificate chain used for client certificate authentication")
 	cmd.StringVar(&opts.clientIDs, "client-ids", "", "Comma-separated list of tunnel client ids, if empty accept all clients with valid client certificate")
+	cmd.IntVar(&opts.logLevel, "log-level", 1, "Level of messages to log, 0-3")
 
 	return cmd
 }
 
-func Execute(logLevel int) error {
-	logger := log.NewFilterLogger(log.NewStdLogger(), logLevel)
+func Execute() error {
+	logger := log.NewFilterLogger(log.NewStdLogger(), opts.logLevel)
 
 	tlsconf, err := tlsConfig()
 	if err != nil {
