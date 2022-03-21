@@ -117,16 +117,17 @@ func tlsConfig(config *ClientConfig) (*tls.Config, error) {
 		return nil, err
 	}
 
-	var roots *x509.CertPool
-	if config.RootCA != "" {
-		roots = x509.NewCertPool()
-		rootPEM, err := ioutil.ReadFile(config.RootCA)
-		if err != nil {
-			return nil, err
-		}
-		if ok := roots.AppendCertsFromPEM(rootPEM); !ok {
-			return nil, err
-		}
+	if config.RootCA == "" {
+		return nil, fmt.Errorf("no root CA is given")
+	}
+
+	roots := x509.NewCertPool()
+	rootPEM, err := ioutil.ReadFile(config.RootCA)
+	if err != nil {
+		return nil, err
+	}
+	if ok := roots.AppendCertsFromPEM(rootPEM); !ok {
+		return nil, err
 	}
 
 	host, _, err := net.SplitHostPort(config.ServerAddr)

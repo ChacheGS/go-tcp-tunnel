@@ -6,10 +6,12 @@ package tunnel_test
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -230,11 +232,28 @@ func tlsConfig() *tls.Config {
 		panic(err)
 	}
 
+	f, err := os.Open("./testdata/selfsigned.crt")
+	if err != nil {
+		panic(err)
+	}
+
+	ca, err := io.ReadAll(f)
+	if err != nil {
+		panic(err)
+	}
+
+	caPool := x509.NewCertPool()
+	if ok := caPool.AppendCertsFromPEM(ca); !ok {
+		panic("failed to append cert")
+	}
+
 	c := &tls.Config{
+		ServerName:               "localhost",
 		Certificates:             []tls.Certificate{cert},
-		ClientAuth:               tls.RequireAnyClientCert,
+		ClientAuth:               tls.RequireAndVerifyClientCert,
+		ClientCAs:                caPool,
+		RootCAs:                  caPool,
 		SessionTicketsDisabled:   true,
-		InsecureSkipVerify:       true,
 		MinVersion:               tls.VersionTLS12,
 		CipherSuites:             []uint16{tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
 		PreferServerCipherSuites: true,

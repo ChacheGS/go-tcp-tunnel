@@ -25,7 +25,7 @@ func main() {
 		return
 	}
 
-	fmt.Println(banner)
+	fmt.Print(banner)
 
 	logger := log.NewFilterLogger(log.NewStdLogger(), opts.logLevel)
 
@@ -61,38 +61,6 @@ func main() {
 		}
 	}
 
-	// start HTTP
-	// if opts.httpAddr != "" {
-	// 	go func() {
-	// 		logger.Log(
-	// 			"level", 1,
-	// 			"action", "start http",
-	// 			"addr", opts.httpAddr,
-	// 		)
-
-	// 		fatal("failed to start HTTP: %s", http.ListenAndServe(opts.httpAddr, server))
-	// 	}()
-	// }
-
-	// start HTTPS
-	// if opts.httpsAddr != "" {
-	// 	go func() {
-	// 		logger.Log(
-	// 			"level", 1,
-	// 			"action", "start https",
-	// 			"addr", opts.httpsAddr,
-	// 		)
-
-	// 		s := &http.Server{
-	// 			Addr:    opts.httpsAddr,
-	// 			Handler: server,
-	// 		}
-	// 		http2.ConfigureServer(s, nil)
-
-	// 		fatal("failed to start HTTPS: %s", s.ListenAndServeTLS(opts.tlsCrt, opts.tlsKey))
-	// 	}()
-	// }
-
 	server.Start()
 }
 
@@ -104,19 +72,19 @@ func tlsConfig(opts *options) (*tls.Config, error) {
 	}
 
 	// load root CA for client authentication
-	clientAuth := tls.RequireAnyClientCert
-	var roots *x509.CertPool
-	if opts.rootCA != "" {
-		roots = x509.NewCertPool()
-		rootPEM, err := ioutil.ReadFile(opts.rootCA)
-		if err != nil {
-			return nil, err
-		}
-		if ok := roots.AppendCertsFromPEM(rootPEM); !ok {
-			return nil, err
-		}
-		clientAuth = tls.RequireAndVerifyClientCert
+	if opts.rootCA == "" {
+		return nil, fmt.Errorf("no client CA is given")
 	}
+
+	roots := x509.NewCertPool()
+	rootPEM, err := ioutil.ReadFile(opts.rootCA)
+	if err != nil {
+		return nil, err
+	}
+	if ok := roots.AppendCertsFromPEM(rootPEM); !ok {
+		return nil, err
+	}
+	clientAuth := tls.RequireAndVerifyClientCert
 
 	return &tls.Config{
 		Certificates:           []tls.Certificate{cert},
