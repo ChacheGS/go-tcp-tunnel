@@ -48,9 +48,6 @@ This creates 2 tunnels:
 Configuration options:
 
 * `server_addr`: server's tunnel listener TCP address, i.e. `54.12.12.45:5223`. default port is `5223`
-* `tls_crt`: path to client TLS certificate, *default:* `tls.crt` *in the config file directory*
-* `tls_key`: path to client TLS certificate key, *default:* `tls.key` *in the config file directory*
-* `root_ca`: path to server TLS certificate authority, *default:* `tls.crt` *in the config file directory*
 * `tunnels / [name]`
     * `proto`: proxy listener protocol, currently only `tcp` can be set
     * `addr`: forward traffic to this local port number or network address, i.e. `localhost:22`

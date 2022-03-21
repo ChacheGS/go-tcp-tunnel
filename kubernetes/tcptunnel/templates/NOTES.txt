@@ -1,0 +1,12 @@
+Successfully installed!
+
+Here is a generated config.yaml
+
+```
+server_addr: {{ .Values.server.remote_addr }}:{{ .Values.server.service.port }}
+
+{{- with .Values.tunnels }}
+tunnels:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+```
