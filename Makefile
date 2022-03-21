@@ -11,3 +11,7 @@ build-tunnel:
 .PHONY: build-tunneld
 build-tunneld:
 	cd cmd/tunneld/; go build -o ../../build/ ; cd -
+
+.PHONY: test
+test:
+	go test -v

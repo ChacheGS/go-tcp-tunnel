@@ -5,16 +5,11 @@
 package tunnel_test
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -29,32 +24,6 @@ const (
 	payloadLen         = 10
 )
 
-// echoHTTP starts serving HTTP requests on listener l, it accepts connections,
-// reads request body and writes is back in response.
-func echoHTTP(t testing.TB, l net.Listener) {
-	http.Serve(l, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		prior := strings.Join(r.Header["X-Forwarded-For"], ", ")
-		if len(strings.Split(prior, ",")) != 2 {
-			t.Fatal(r.Header)
-		}
-		if !strings.Contains(r.Header.Get("X-Forwarded-Host"), "localhost:") {
-			t.Fatal(r.Header)
-		}
-		if r.Header.Get("X-Forwarded-Proto") != "http" {
-			t.Fatal(r.Header)
-		}
-
-		w.WriteHeader(http.StatusOK)
-		if r.Body != nil {
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			w.Write(body)
-		}
-	}))
-}
-
 // echoTCP accepts connections and copies back received bytes.
 func echoTCP(l net.Listener) {
 	for {
@@ -68,7 +37,7 @@ func echoTCP(l net.Listener) {
 	}
 }
 
-func makeEcho(t testing.TB) (http net.Listener, tcp net.Listener) {
+func makeEcho(t testing.TB) (tcp net.Listener) {
 	var err error
 
 	// TCP echo
@@ -77,13 +46,6 @@ func makeEcho(t testing.TB) (http net.Listener, tcp net.Listener) {
 		t.Fatal(err)
 	}
 	go echoTCP(tcp)
-
-	// HTTP echo
-	http, err = net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	go echoHTTP(t, http)
 
 	return
 }
@@ -103,7 +65,7 @@ func makeTunnelServer(t testing.TB) *tunnel.Server {
 	return s
 }
 
-func makeTunnelClient(t testing.TB, serverAddr string, httpLocalAddr, httpAddr, tcpLocalAddr, tcpAddr net.Addr) *tunnel.Client {
+func makeTunnelClient(t testing.TB, serverAddr string, tcpLocalAddr, tcpAddr net.Addr) *tunnel.Client {
 	tcpProxy := tunnel.NewMultiTCPProxy(map[string]string{
 		port(tcpLocalAddr): tcpAddr.String(),
 	}, log.NewStdLogger())
@@ -138,22 +100,17 @@ func makeTunnelClient(t testing.TB, serverAddr string, httpLocalAddr, httpAddr, 
 
 func TestIntegration(t *testing.T) {
 	// local services
-	http, tcp := makeEcho(t)
-	defer http.Close()
+	tcp := makeEcho(t)
 	defer tcp.Close()
 
 	// server
 	s := makeTunnelServer(t)
 	defer s.Stop()
-	h := httptest.NewServer(s)
-	defer h.Close()
 
-	httpLocalAddr := h.Listener.Addr()
 	tcpLocalAddr := freeAddr()
 
 	// client
 	c := makeTunnelClient(t, s.Addr(),
-		httpLocalAddr, http.Addr(),
 		tcpLocalAddr, tcp.Addr(),
 	)
 	// FIXME: replace sleep with client state change watch when ready
@@ -177,46 +134,12 @@ func TestIntegration(t *testing.T) {
 
 			wg.Add(1)
 			go func() {
-				testHTTP(t, h.Listener.Addr(), p, r)
-				wg.Done()
-			}()
-			wg.Add(1)
-			go func() {
 				testTCP(t, tcpLocalAddr, p, r)
 				wg.Done()
 			}()
 		}
 	}
 	wg.Wait()
-}
-
-func testHTTP(t testing.TB, addr net.Addr, payload []byte, repeat uint) {
-	url := fmt.Sprintf("http://localhost:%s/some/path", port(addr))
-
-	for repeat > 0 {
-		r, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
-		if err != nil {
-			t.Fatal("Failed to create request")
-		}
-		r.SetBasicAuth("user", "password")
-
-		resp, err := http.DefaultClient.Do(r)
-		if err != nil {
-			t.Error(err)
-		}
-		if resp.StatusCode != http.StatusOK {
-			t.Error("Unexpected status code", resp)
-		}
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			t.Error("Read error")
-		}
-		n, m := len(b), len(payload)
-		if n != m {
-			t.Error("Write read mismatch", n, m)
-		}
-		repeat--
-	}
 }
 
 func testTCP(t testing.TB, addr net.Addr, payload []byte, repeat uint) {
