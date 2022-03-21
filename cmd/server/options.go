@@ -133,6 +133,7 @@ func tlsConfig() (*tls.Config, error) {
 		Certificates:           []tls.Certificate{cert},
 		ClientAuth:             clientAuth,
 		ClientCAs:              roots,
+		RootCAs:                roots,
 		SessionTicketsDisabled: true,
 		MinVersion:             tls.VersionTLS12,
 		CipherSuites: []uint16{

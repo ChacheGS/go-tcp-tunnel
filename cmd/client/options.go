@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"sort"
 
@@ -156,7 +157,7 @@ func Execute() error {
 		return fmt.Errorf("no tunnels")
 	}
 
-	tlsconf, err := tlsConfig()
+	tlsconf, err := tlsConfig(config)
 	if err != nil {
 		return fmt.Errorf("failed to configure tls: %s", err)
 	}
@@ -182,7 +183,7 @@ func Execute() error {
 	return client.Start()
 }
 
-func tlsConfig() (*tls.Config, error) {
+func tlsConfig(config *ClientConfig) (*tls.Config, error) {
 	cert, err := tls.LoadX509KeyPair(opts.tlsCrt, opts.tlsKey)
 	if err != nil {
 		return nil, err
@@ -201,13 +202,13 @@ func tlsConfig() (*tls.Config, error) {
 		return nil, err
 	}
 
-	// host, _, err := net.SplitHostPort(config.ServerAddr)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	host, _, err := net.SplitHostPort(config.ServerAddr)
+	if err != nil {
+		return nil, err
+	}
 
 	return &tls.Config{
-		// ServerName:         host,
+		ServerName:         host,
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: roots == nil,
 		RootCAs:            roots,
