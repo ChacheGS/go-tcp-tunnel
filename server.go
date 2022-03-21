@@ -126,7 +126,7 @@ func (s *Server) disconnected(identifier id.ID) {
 
 // Start starts accepting connections form clients. For accepting http traffic
 // from end users server must be run as handler on http server.
-func (s *Server) Start() {
+func (s *Server) Start() error {
 	addr := s.listener.Addr().String()
 
 	s.logger.Log(
@@ -144,7 +144,7 @@ func (s *Server) Start() {
 					"action", "control connection listener closed",
 					"addr", addr,
 				)
-				return
+				return err
 			}
 
 			s.logger.Log(

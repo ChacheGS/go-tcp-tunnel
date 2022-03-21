@@ -5,8 +5,11 @@
 package tunnel
 
 import (
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/jlandowner/go-http-tunnel/log"
@@ -41,4 +44,22 @@ func (fw flushWriter) Write(p []byte) (n int, err error) {
 		f.Flush()
 	}
 	return
+}
+
+func NormalizeAddress(addr string) (string, error) {
+	// normalize port to addr
+	if _, err := strconv.Atoi(addr); err == nil {
+		addr = ":" + addr
+	}
+
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", err
+	}
+
+	if host == "" {
+		host = "127.0.0.1"
+	}
+
+	return fmt.Sprintf("%s:%s", host, port), nil
 }

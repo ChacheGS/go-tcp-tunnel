@@ -1,16 +1,14 @@
-all: build-tunnel build-tunneld
+BINARY = tcptunnel
+
+all: build
 
 .PHONY: setup
 setup:
-	mkdir -p build
+	mkdir -p bin
 
-.PHONY: build-tunnel
-build-tunnel:
-	cd cmd/tunnel/; go build -o ../../build/ ; cd -
-
-.PHONY: build-tunneld
-build-tunneld:
-	cd cmd/tunneld/; go build -o ../../build/ ; cd -
+.PHONY: build
+build:
+	go build -o bin/$(BINARY) cmd/main.go
 
 .PHONY: test
 test:
