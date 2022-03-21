@@ -92,10 +92,9 @@ func main() {
 				fatal("ERROR: %v", err)
 			}
 		}
-	} else {
-		flag.Usage()
-		fatal("ERROR: nor client or server is specified")
 	}
+	flag.Usage()
+	fatal("ERROR: nor client or server is specified")
 }
 
 func fatal(format string, a ...interface{}) {
