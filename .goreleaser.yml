@@ -1,0 +1,24 @@
+before:
+  hooks:
+  - go mod download
+builds:
+- id: tcptunnel
+  main: ./cmd/main.go
+  binary: tcptunnel
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - linux
+  - darwin
+  - windows
+  goarch:
+  - amd64
+  - arm64
+archives:
+- builds:
+  - tcptunnel
+  name_template: "tcptunnel_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  wrap_in_directory: false
+  format: tar.gz
+release:
+  draft: true
