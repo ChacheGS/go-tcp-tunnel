@@ -64,9 +64,9 @@ var opts options
 func Command() *flag.FlagSet {
 	cmd := flag.NewFlagSet("client", flag.ExitOnError)
 	cmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, usage1)
+		fmt.Fprint(os.Stderr, usage1)
 		cmd.PrintDefaults()
-		fmt.Fprintf(os.Stderr, usage2)
+		fmt.Fprint(os.Stderr, usage2)
 	}
 
 	cmd.StringVar(&opts.config, "config", "tunnel.yml", "Path to tunnel configuration file")

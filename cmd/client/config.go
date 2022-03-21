@@ -8,6 +8,7 @@ package client
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"path/filepath"
 	"time"
 
@@ -57,8 +58,9 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 	}
 
 	c := ClientConfig{
-		TLSCrt: filepath.Join(filepath.Dir(file), "client.crt"),
-		TLSKey: filepath.Join(filepath.Dir(file), "client.key"),
+		TLSCrt: filepath.Join(filepath.Dir(file), "tls.crt"),
+		TLSKey: filepath.Join(filepath.Dir(file), "tls.key"),
+		RootCA: filepath.Join(filepath.Dir(file), "tls.crt"),
 		Backoff: BackoffConfig{
 			Interval:    DefaultBackoffInterval,
 			Multiplier:  DefaultBackoffMultiplier,
@@ -81,7 +83,7 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 	for name, t := range c.Tunnels {
 		switch t.Protocol {
 		case proto.TCP, proto.TCP4, proto.TCP6:
-			if err := validateTCP(t); err != nil {
+			if err := completeTCP(t); err != nil {
 				return nil, fmt.Errorf("%s %s", name, err)
 			}
 		default:
@@ -92,16 +94,24 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 	return &c, nil
 }
 
-func validateTCP(t *Tunnel) error {
+func completeTCP(t *Tunnel) error {
 	var err error
-	if t.RemoteAddr, err = tunnel.NormalizeAddress(t.RemoteAddr); err != nil {
-		return fmt.Errorf("remote_addr: %s", err)
-	}
 	if t.Addr == "" {
 		return fmt.Errorf("addr: missing")
 	}
 	if t.Addr, err = tunnel.NormalizeAddress(t.Addr); err != nil {
 		return fmt.Errorf("addr: %s", err)
+	}
+
+	if t.RemoteAddr == "" {
+		_, port, err := net.SplitHostPort(t.Addr)
+		if err != nil {
+			return fmt.Errorf("addr: %s", err)
+		}
+		t.RemoteAddr = fmt.Sprintf("0.0.0.0:%s", port)
+	}
+	if t.RemoteAddr, err = tunnel.NormalizeAddress(t.RemoteAddr); err != nil {
+		return fmt.Errorf("remote_addr: %s", err)
 	}
 
 	return nil

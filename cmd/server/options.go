@@ -33,9 +33,9 @@ Example:
 
 func init() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, usage1)
+		fmt.Fprint(os.Stderr, usage1)
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, usage2)
+		fmt.Fprint(os.Stderr, usage2)
 	}
 }
 
