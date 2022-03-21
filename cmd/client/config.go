@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	"path/filepath"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -44,9 +43,6 @@ type Tunnel struct {
 // ClientConfig is a tunnel client configuration.
 type ClientConfig struct {
 	ServerAddr string             `yaml:"server_addr"`
-	TLSCrt     string             `yaml:"tls_crt"`
-	TLSKey     string             `yaml:"tls_key"`
-	RootCA     string             `yaml:"root_ca"`
 	Backoff    BackoffConfig      `yaml:"backoff"`
 	Tunnels    map[string]*Tunnel `yaml:"tunnels"`
 }
@@ -58,9 +54,6 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 	}
 
 	c := ClientConfig{
-		TLSCrt: filepath.Join(filepath.Dir(file), "tls.crt"),
-		TLSKey: filepath.Join(filepath.Dir(file), "tls.key"),
-		RootCA: filepath.Join(filepath.Dir(file), "tls.crt"),
 		Backoff: BackoffConfig{
 			Interval:    DefaultBackoffInterval,
 			Multiplier:  DefaultBackoffMultiplier,

@@ -53,16 +53,16 @@ var opts options
 func Command() *flag.FlagSet {
 	cmd := flag.NewFlagSet("server", flag.ExitOnError)
 	cmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, usage1)
+		fmt.Fprint(os.Stderr, usage1)
 		cmd.PrintDefaults()
-		fmt.Fprintf(os.Stderr, usage2)
+		fmt.Fprint(os.Stderr, usage2)
 	}
 
 	cmd.StringVar(&opts.tunnelAddr, "addr", ":5223", "Public address listening for tunnel client")
-	cmd.StringVar(&opts.tlsCrt, "tls-crt", "server.crt", "Path to a TLS certificate file")
-	cmd.StringVar(&opts.tlsKey, "tls-key", "server.key", "Path to a TLS key file")
-	cmd.StringVar(&opts.clientCA, "client-ca", "", "Path to the trusted certificate chian used for client certificate authentication, if empty any client certificate is accepted")
-	cmd.StringVar(&opts.clientIDs, "client-ids", "", "Comma-separated list of tunnel client ids, if empty accept all clients")
+	cmd.StringVar(&opts.tlsCrt, "tls-crt", "tls.crt", "Path to a TLS certificate file")
+	cmd.StringVar(&opts.tlsKey, "tls-key", "tls.key", "Path to a TLS key file")
+	cmd.StringVar(&opts.clientCA, "ca-crt", "tls.crt", "Path to the trusted certificate chain used for client certificate authentication")
+	cmd.StringVar(&opts.clientIDs, "client-ids", "", "Comma-separated list of tunnel client ids, if empty accept all clients with valid client certificate")
 
 	return cmd
 }

@@ -11,7 +11,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"sort"
 
@@ -55,6 +54,9 @@ config.yaml:
 
 type options struct {
 	config  string
+	tlsCrt  string
+	tlsKey  string
+	rootCA  string
 	command string
 	args    []string
 }
@@ -70,6 +72,9 @@ func Command() *flag.FlagSet {
 	}
 
 	cmd.StringVar(&opts.config, "config", "tunnel.yml", "Path to tunnel configuration file")
+	cmd.StringVar(&opts.tlsCrt, "tls-crt", "tls.crt", "Path to a TLS certificate file")
+	cmd.StringVar(&opts.tlsKey, "tls-key", "tls.key", "Path to a TLS key file")
+	cmd.StringVar(&opts.rootCA, "ca-crt", "tls.crt", "Path to the trusted certificate chain used for server certificate authentication")
 
 	return cmd
 }
@@ -85,7 +90,7 @@ func Execute(logLevel int) error {
 
 	switch opts.command {
 	case "id":
-		cert, err := tls.LoadX509KeyPair(config.TLSCrt, config.TLSKey)
+		cert, err := tls.LoadX509KeyPair(opts.tlsCrt, opts.tlsKey)
 		if err != nil {
 			return fmt.Errorf("failed to load key pair: %s", err)
 		}
@@ -127,7 +132,7 @@ func Execute(logLevel int) error {
 		return fmt.Errorf("no tunnels")
 	}
 
-	tlsconf, err := tlsConfig(config)
+	tlsconf, err := tlsConfig()
 	if err != nil {
 		return fmt.Errorf("failed to configure tls: %s", err)
 	}
@@ -153,18 +158,18 @@ func Execute(logLevel int) error {
 	return client.Start()
 }
 
-func tlsConfig(config *ClientConfig) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(config.TLSCrt, config.TLSKey)
+func tlsConfig() (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(opts.tlsCrt, opts.tlsKey)
 	if err != nil {
 		return nil, err
 	}
 
-	if config.RootCA == "" {
+	if opts.rootCA == "" {
 		return nil, fmt.Errorf("no root CA is given")
 	}
 
 	roots := x509.NewCertPool()
-	rootPEM, err := ioutil.ReadFile(config.RootCA)
+	rootPEM, err := ioutil.ReadFile(opts.rootCA)
 	if err != nil {
 		return nil, err
 	}
@@ -172,13 +177,13 @@ func tlsConfig(config *ClientConfig) (*tls.Config, error) {
 		return nil, err
 	}
 
-	host, _, err := net.SplitHostPort(config.ServerAddr)
-	if err != nil {
-		return nil, err
-	}
+	// host, _, err := net.SplitHostPort(config.ServerAddr)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &tls.Config{
-		ServerName:         host,
+		// ServerName:         host,
 		Certificates:       []tls.Certificate{cert},
 		InsecureSkipVerify: roots == nil,
 		RootCAs:            roots,
