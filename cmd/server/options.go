@@ -1,4 +1,5 @@
 // Copyright (C) 2017 Michał Matczuk
+// Copyright (C) 2022 jlandowner
 // Use of this source code is governed by an AGPL-style
 // license that can be found in the LICENSE file.
 
@@ -18,15 +19,15 @@ import (
 	"github.com/jlandowner/go-http-tunnel/log"
 )
 
-const usage1 string = `Usage: tunneld server [OPTIONS]
+const usage1 string = `Usage: tcptunnel server [OPTIONS]
 options:
 `
 
 const usage2 string = `
 Example:
-	tunneld server
-	tunneld server -clients YMBKT3V-ESUTZ2Z-7MRILIJ-T35FHGO-D2DHO7D-FXMGSSR-V4LBSZX-BNDONQ4
-	tunneld server -client-ca client_root.crt -tls-crt server.crt -tls-key server.key
+	tcptunnel server
+	tcptunnel server -clients YMBKT3V-ESUTZ2Z-7MRILIJ-T35FHGO-D2DHO7D-FXMGSSR-V4LBSZX-BNDONQ4
+	tcptunnel server -client-ca client_root.crt -tls-crt server.crt -tls-key server.key
 
 `
 

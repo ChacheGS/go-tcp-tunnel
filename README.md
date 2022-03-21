@@ -1,12 +1,10 @@
-# Go HTTP tunnel [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](http://godoc.org/github.com/jlandowner/go-http-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/jlandowner/go-http-tunnel)](https://goreportcard.com/report/github.com/jlandowner/go-http-tunnel) [![Build Status](http://img.shields.io/travis/mmatczuk/go-http-tunnel.svg?branch=master)](https://travis-ci.org/mmatczuk/go-http-tunnel) [![Github All Releases](https://img.shields.io/github/downloads/mmatczuk/go-http-tunnel/total.svg)](https://github.com/jlandowner/go-http-tunnel/releases)
+# Go HTTP tunnel [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](http://godoc.org/github.com/jlandowner/go-http-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/jlandowner/go-http-tunnel)](https://goreportcard.com/report/github.com/jlandowner/go-http-tunnel) [![Github All Releases](https://img.shields.io/github/downloads/jlandowner/go-http-tunnel/total.svg)](https://github.com/jlandowner/go-http-tunnel/releases)
 
 Go HTTP tunnel is a reverse tunnel based on HTTP/2. It enables you to share your localhost when you don't have a public IP.
 
 Features:
 
-* HTTP proxy with [basic authentication](https://en.wikipedia.org/wiki/Basic_access_authentication)
 * TCP proxy
-* [SNI](https://en.wikipedia.org/wiki/Server_Name_Indication) vhost proxy
 * Client auto reconnect
 * Client management and eviction
 * Easy to use CLI
@@ -31,10 +29,10 @@ Alternatively [download the latest release](https://github.com/jlandowner/go-htt
 
 There are two executables:
 
-* `tunneld` - the tunnel server, to be run on publicly available host like AWS or GCE
+* `tcptunnel` - the tunnel server, to be run on publicly available host like AWS or GCE
 * `tunnel` - the tunnel client, to be run on your local machine or in your private network
 
-To get help on the command parameters run `tunneld -h` or `tunnel -h`.
+To get help on the command parameters run `tcptunnel -h` or `tunnel -h`.
 
 Tunnel requires TLS certificates for both client and server.
 
@@ -57,13 +55,13 @@ $ tunnel -config ./tunnel/tunnel.yml start-all
 
 Run server:
 
-* Install `tunneld` binary
-* Make `.tunneld` directory
-* Copy `server.key`, `server.crt` to `.tunneld`
+* Install `tcptunnel` binary
+* Make `.tcptunnel` directory
+* Copy `server.key`, `server.crt` to `.tcptunnel`
 * Start tunnel server
 
 ```bash
-$ tunneld -tlsCrt .tunneld/server.crt -tlsKey .tunneld/server.key
+$ tcptunnel -tlsCrt .tcptunnel/server.crt -tlsKey .tcptunnel/server.key
 ```
 
 This will run HTTP server on port `80` and HTTPS (HTTP/2) server on port `443`. If you want to use HTTPS it's recommended to get a properly signed certificate to avoid security warnings.
@@ -73,7 +71,7 @@ This will run HTTP server on port `80` and HTTPS (HTTP/2) server on port `443`. 
 * After completing the steps above successfully, create a new file for your service (you can name it whatever you want, just replace the name below with your chosen name).
 
 ``` bash
-$ vim tunneld.service
+$ vim tcptunnel.service
 ```
 
 * Add the following configuration to the file
@@ -85,7 +83,7 @@ After=network.target
 After=network-online.target
 
 [Service]
-ExecStart=/path/to/your/tunneld -tlsCrt /path/to/your/folder/.tunneld/server.crt -tlsKey /path/to/your/folder/.tunneld/server.key
+ExecStart=/path/to/your/tcptunnel -tlsCrt /path/to/your/folder/.tcptunnel/server.crt -tlsKey /path/to/your/folder/.tcptunnel/server.key
 TimeoutSec=30
 Restart=on-failure
 RestartSec=30
@@ -98,31 +96,31 @@ WantedBy=multi-user.target
 * Move this new file to /etc/systemd/system/
 
 ```bash
-$ sudo mv tunneld.service /etc/systemd/system/
+$ sudo mv tcptunnel.service /etc/systemd/system/
 ```
 
 * Change the file permission to allow it to run.
 
 ```bash
-$ sudo chmod u+x /etc/systemd/system/tunneld.service
+$ sudo chmod u+x /etc/systemd/system/tcptunnel.service
 ```
 
 * Start the new service and make sure you don't get any errors, and that your client is able to connect.
 
 ```bash
-$ sudo systemctl start tunneld.service
+$ sudo systemctl start tcptunnel.service
 ```
 
 * You can stop the service with:
 
 ```bash
-$ sudo systemctl stop tunneld.service
+$ sudo systemctl stop tcptunnel.service
 ```
 
 * Finally, if you want the service to start automatically when the server is rebooted, you need to enable it.
 
 ```bash
-$ sudo systemctl enable tunneld.service
+$ sudo systemctl enable tcptunnel.service
 ```
 
 There are many more options for systemd services, and this is by not means an exhaustive configuration file.
@@ -191,5 +189,6 @@ A GitHub star is always appreciated!
 ## License
 
 Copyright (C) 2017 Michał Matczuk
+Copyright (C) 2022 jlandowner
 
 This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/jlandowner/go-http-tunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.

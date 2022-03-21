@@ -1,4 +1,5 @@
 // Copyright (C) 2017 Michał Matczuk
+// Copyright (C) 2022 jlandowner
 // Use of this source code is governed by an AGPL-style
 // license that can be found in the LICENSE file.
 
@@ -22,21 +23,21 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const usage1 string = `Usage: tunneld client [OPTIONS] <command> [command args] [...]
+const usage1 string = `Usage: tcptunnel client [OPTIONS] <command> [command args] [...]
 options:
 `
 
 const usage2 string = `
 Commands:
-	tunneld client id                      Show client identifier
-	tunneld client list                    List tunnel names from config file
-	tunneld client start [tunnel] [...]    Start tunnels by name from config file
-	tunneld client start-all               Start all tunnels defined in config file
+	tcptunnel client id                      Show client identifier
+	tcptunnel client list                    List tunnel names from config file
+	tcptunnel client start [tunnel] [...]    Start tunnels by name from config file
+	tcptunnel client start-all               Start all tunnels defined in config file
 
 Examples:
-	tunneld client start www ssh
-	tunneld client -config config.yaml -log-level 2 start ssh
-	tunneld client start-all
+	tcptunnel client start www ssh
+	tcptunnel client -config config.yaml -log-level 2 start ssh
+	tcptunnel client start-all
 
 config.yaml:
 	server_addr: SERVER_IP:5223

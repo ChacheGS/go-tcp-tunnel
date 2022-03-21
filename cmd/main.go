@@ -1,4 +1,5 @@
 // Copyright (C) 2017 Michał Matczuk
+// Copyright (C) 2022 jlandowner
 // Use of this source code is governed by an AGPL-style
 // license that can be found in the LICENSE file.
 
@@ -23,14 +24,14 @@ const banner = `
 `
 const version string = "snapshot"
 
-const usage1 string = `Usage: tunneld [server|client] [OPTIONS]
+const usage1 string = `Usage: tcptunnel server|client [OPTIONS]
 Options:
 `
 
 const usage2 string = `
 Example:
-	tunneld server --help
-	tunneld client --help
+	tcptunnel server --help
+	tcptunnel client --help
 
 Author:
 	jlandowner(https://github.com/jlandowner)
@@ -38,7 +39,7 @@ Author:
 	Original go-http-tunnel(https://github.com/mmatczuk/go-http-tunnel) is written by M. Matczuk (mmatczuk@gmail.com)
 
 Bugs:
-	Submit bugs to https://github.com/jlandowner/go-http-tunnel/issues
+	Submit bugs to https://github.com/jlandowner/tcptunnel/issues
 
 `
 
