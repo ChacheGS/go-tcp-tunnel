@@ -28,4 +28,5 @@ tags
 
 bin
 bk
+*.bk
 tls

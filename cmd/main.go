@@ -22,21 +22,22 @@ const banner = `
 /_/  \____/_/       \__/\__,_/_/ /_/_/ /_/\___/_/
 
 `
-const version string = "snapshot"
+const version string = "v0.0.1"
 
 const usage1 string = `Usage: tcptunnel server|client [OPTIONS]
 Options:
 `
 
 const usage2 string = `
-Example:
+Commands:
 	tcptunnel server --help
 	tcptunnel client --help
 
 Author:
 	jlandowner(https://github.com/jlandowner)
-	
-	Original go-http-tunnel(https://github.com/mmatczuk/go-http-tunnel) is written by M. Matczuk (mmatczuk@gmail.com)
+
+	This project is forked from go-http-tunnel(https://github.com/mmatczuk/go-http-tunnel)
+	written by M. Matczuk (mmatczuk@gmail.com)
 
 Bugs:
 	Submit bugs to https://github.com/jlandowner/tcptunnel/issues
