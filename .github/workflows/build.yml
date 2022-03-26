@@ -36,7 +36,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: ${{ 'ghcr.io/' }}${{ github.repository }}${{ '/go-tcp-tunnel' }}
+          images: ${{ 'ghcr.io/' }}${{ github.repository }}
       -
         name: Login to GitHub Container Registry
         uses: docker/login-action@v1
