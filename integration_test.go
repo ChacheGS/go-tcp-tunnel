@@ -17,9 +17,9 @@ import (
 	"testing"
 	"time"
 
-	tunnel "github.com/jlandowner/go-http-tunnel"
-	"github.com/jlandowner/go-http-tunnel/log"
-	"github.com/jlandowner/go-http-tunnel/proto"
+	tunnel "github.com/jlandowner/go-tcp-tunnel"
+	"github.com/jlandowner/go-tcp-tunnel/log"
+	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
 
 const (

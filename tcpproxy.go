@@ -10,8 +10,8 @@ import (
 	"io"
 	"net"
 
-	"github.com/jlandowner/go-http-tunnel/log"
-	"github.com/jlandowner/go-http-tunnel/proto"
+	"github.com/jlandowner/go-tcp-tunnel/log"
+	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
 
 // TCPProxy forwards TCP streams.

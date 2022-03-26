@@ -10,28 +10,27 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jlandowner/go-http-tunnel/cmd/client"
-	"github.com/jlandowner/go-http-tunnel/cmd/server"
+	"github.com/jlandowner/go-tcp-tunnel/cmd/client"
+	"github.com/jlandowner/go-tcp-tunnel/cmd/server"
 )
 
 const banner = `
-  ________________     __                         __
- /_  __/ ____/ __ \   / /___  ______  ____  ___  / /
-  / / / /   / /_/ /  / __/ / / / __ \/ __ \/ _ \/ /
- / / / /___/ ____/  / /_/ /_/ / / / / / / /  __/ /
-/_/  \____/_/       \__/\__,_/_/ /_/_/ /_/\___/_/
-
+   ______       ________________     __                         __
+  / ____/___   /_  __/ ____/ __ \   / /___  ______  ____  ___  / /
+ / / __/ __ \   / / / /   / /_/ /  / __/ / / / __ \/ __ \/ _ \/ /
+/ /_/ / /_/ /  / / / /___/ ____/  / /_/ /_/ / / / / / / /  __/ /
+\____/\____/  /_/  \____/_/       \__/\__,_/_/ /_/_/ /_/\___/_/
 `
 const version string = "v0.0.1"
 
-const usage1 string = `Usage: tcptunnel server|client [OPTIONS]
+const usage1 string = `Usage: go-tcp-tunnel server|client [OPTIONS]
 Options:
 `
 
 const usage2 string = `
 Commands:
-	tcptunnel server --help
-	tcptunnel client --help
+	go-tcp-tunnel server --help
+	go-tcp-tunnel client --help
 
 Author:
 	jlandowner(https://github.com/jlandowner)
@@ -40,7 +39,7 @@ Author:
 	written by M. Matczuk (mmatczuk@gmail.com)
 
 Bugs:
-	Submit bugs to https://github.com/jlandowner/tcptunnel/issues
+	Submit bugs to https://github.com/jlandowner/go-tcp-tunnel/issues
 
 `
 

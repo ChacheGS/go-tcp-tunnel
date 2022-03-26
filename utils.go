@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jlandowner/go-http-tunnel/log"
+	"github.com/jlandowner/go-tcp-tunnel/log"
 )
 
 func transfer(dst io.Writer, src io.Reader, logger log.Logger) {

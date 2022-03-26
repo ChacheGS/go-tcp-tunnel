@@ -1,4 +1,4 @@
-# Default values for tcptunnel.
+# Default values for go-tcp-tunnel.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -25,7 +25,7 @@ tunnels: {}
 replicaCount: 1
 
 image:
-  repository: ghcr.io/jlandowner/tcptunnel
+  repository: ghcr.io/jlandowner/go-tcp-tunnel
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""

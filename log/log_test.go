@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/jlandowner/go-http-tunnel/tunnelmock"
+	"github.com/jlandowner/go-tcp-tunnel/tunnelmock"
 )
 
 func TestContext_Log(t *testing.T) {

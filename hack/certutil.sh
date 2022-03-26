@@ -135,7 +135,7 @@ case $cmd in
         certCmd $addr $dir $expireDays
         ;;
     secret)
-        [[ $name == "" ]] && name=tcptunnel-cert
+        [[ $name == "" ]] && name=go-tcp-tunnel-cert
         [[ $dir == "" ]] && dir=tls
         [[ $context != "" ]] && contextOption="--context $context"
         [[ $isInstall -ne 1 ]] && dryrunOption="--dry-run"

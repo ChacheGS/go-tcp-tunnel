@@ -1,5 +1,5 @@
 REPO_PREFIX ?= ghcr.io/jlandowner/
-NAME ?= tcptunnel
+NAME ?= go-tcp-tunnel
 VERSION ?= v0.0.1
 CHART_VERSION ?= $(VERSION)
 
@@ -37,4 +37,4 @@ endif
 	sed -i.bk \
 		-e "s/version: [0-9]\+.[0-9]\+.[0-9]\+.*/version: ${CHART_VERSION:v%=%}/" \
 		-e "s/appVersion: v[0-9]\+.[0-9]\+.[0-9]\+.*/appVersion: ${VERSION}/" \
-		kubernetes/tcptunnel/Chart.yaml
+		kubernetes/go-tcp-tunnel/Chart.yaml

@@ -1,4 +1,4 @@
-module github.com/jlandowner/go-http-tunnel
+module github.com/jlandowner/go-tcp-tunnel
 
 go 1.17
 

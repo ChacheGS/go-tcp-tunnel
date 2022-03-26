@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "tcptunnel.fullname" . }}-server
+  name: {{ include "go-tcp-tunnel.fullname" . }}-server
   labels:
-    {{- include "tcptunnel.labels" . | nindent 4 }}
+    {{- include "go-tcp-tunnel.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.server.service.type }}
   ports:
@@ -16,20 +16,20 @@ spec:
     {{- toYaml . | nindent 4 }}
     {{- end }}
   selector:
-    {{- include "tcptunnel.selectorLabels" . | nindent 4 }}
+    {{- include "go-tcp-tunnel.selectorLabels" . | nindent 4 }}
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "tcptunnel.fullname" . }}-server
+  name: {{ include "go-tcp-tunnel.fullname" . }}-server
   labels:
-    {{- include "tcptunnel.labels" . | nindent 4 }}
+    {{- include "go-tcp-tunnel.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "tcptunnel.selectorLabels" . | nindent 6 }}
+      {{- include "go-tcp-tunnel.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -37,13 +37,13 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "tcptunnel.selectorLabels" . | nindent 8 }}
+        {{- include "go-tcp-tunnel.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "tcptunnel.serviceAccountName" . }}
+      serviceAccountName: {{ include "go-tcp-tunnel.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -70,7 +70,7 @@ spec:
       volumes:
         - name: cert
           secret:
-            secretName: tcptunnel-cert
+            secretName: go-tcp-tunnel-cert
             defaultMode: 420
       {{- with .Values.nodeSelector }}
       nodeSelector:

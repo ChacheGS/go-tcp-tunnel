@@ -17,8 +17,8 @@ import (
 
 	"golang.org/x/net/http2"
 
-	"github.com/jlandowner/go-http-tunnel/log"
-	"github.com/jlandowner/go-http-tunnel/proto"
+	"github.com/jlandowner/go-tcp-tunnel/log"
+	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
 
 // ClientConfig is configuration of the Client.

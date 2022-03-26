@@ -13,8 +13,8 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	tunnel "github.com/jlandowner/go-http-tunnel"
-	"github.com/jlandowner/go-http-tunnel/proto"
+	tunnel "github.com/jlandowner/go-tcp-tunnel"
+	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
 
 // Default backoff configuration.

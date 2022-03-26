@@ -1,12 +1,13 @@
-# TCP tunnel [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://pkg.go.dev/github.com/jlandowner/tcptunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/jlandowner/tcptunnel)](https://goreportcard.com/report/github.com/jlandowner/tcptunnel) [![Github All Releases](https://img.shields.io/github/downloads/jlandowner/tcptunnel/total.svg)](https://github.com/jlandowner/tcptunnel/releases)
+# TCP tunnel
+[![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://pkg.go.dev/github.com/jlandowner/go-tcp-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/jlandowner/go-tcp-tunnel)](https://goreportcard.com/report/github.com/jlandowner/go-tcp-tunnel) [![Github All Releases](https://img.shields.io/github/downloads/jlandowner/go-tcp-tunnel/total.svg)](https://github.com/jlandowner/go-tcp-tunnel/releases)
 
-TCP tunnel is a TCP reverse tunnel proxy to expose your private backends behind a firewall to the public.
+Go TCP tunnel is a TCP reverse tunnel proxy to expose your local backends behind a firewall to the public.
 The reverse tunnel is based on HTTP/2 with mutual TLS (mTLS). It enables you to share your localhost when you don't have a public IP.
 
 Features:
 
-* TCP proxy
-* Secure tunnel
+* Easily expose a local server to the public
+* Secure TCP tunnel
 * Dynamic listeners on server by client commands
 
 Common use cases:
@@ -69,4 +70,4 @@ The tunnel is based HTTP/2 for speed and security. There is a single TCP connect
 Copyright (C) 2017 Michał Matczuk
 Copyright (C) 2022 jlandowner
 
-This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/jlandowner/tcptunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.
+This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/jlandowner/go-tcp-tunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.

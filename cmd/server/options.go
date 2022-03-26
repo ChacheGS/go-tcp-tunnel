@@ -14,20 +14,20 @@ import (
 	"os"
 	"strings"
 
-	tunnel "github.com/jlandowner/go-http-tunnel"
-	"github.com/jlandowner/go-http-tunnel/id"
-	"github.com/jlandowner/go-http-tunnel/log"
+	tunnel "github.com/jlandowner/go-tcp-tunnel"
+	"github.com/jlandowner/go-tcp-tunnel/id"
+	"github.com/jlandowner/go-tcp-tunnel/log"
 )
 
-const usage1 string = `Usage: tcptunnel server [OPTIONS]
+const usage1 string = `Usage: go-tcp-tunnel server [OPTIONS]
 options:
 `
 
 const usage2 string = `
 Example:
-	tcptunnel server
-	tcptunnel server -clients YMBKT3V-ESUTZ2Z-7MRILIJ-T35FHGO-D2DHO7D-FXMGSSR-V4LBSZX-BNDONQ4
-	tcptunnel server -ca-crt client.crt -tls-crt server.crt -tls-key server.key
+	go-tcp-tunnel server
+	go-tcp-tunnel server -clients YMBKT3V-ESUTZ2Z-7MRILIJ-T35FHGO-D2DHO7D-FXMGSSR-V4LBSZX-BNDONQ4
+	go-tcp-tunnel server -ca-crt client.crt -tls-crt server.crt -tls-key server.key
 
 `
 
