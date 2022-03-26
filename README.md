@@ -22,8 +22,9 @@ Common use cases:
 > 
 > Here are some of the updates from the original
 > * Focus on TCP proxy
-> * Remove some old dependencies
 > * Package as Docker image and support Kubernetes
+> * Update Go version
+> * Remove some old dependencies
 >
 > This repository is activly maintained 
 
