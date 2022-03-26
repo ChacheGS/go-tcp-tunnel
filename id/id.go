@@ -73,7 +73,7 @@ func (i *ID) UnmarshalText(bs []byte) (err error) {
 	id = untypeoify(id)
 	id = unchunkify(id)
 
-	if len(id) != 56 {
+	if len(id) != 52 {
 		return errors.New("device ID invalid: incorrect length")
 	}
 

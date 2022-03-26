@@ -138,6 +138,13 @@ func (p *connPool) addr(identifier id.ID) string {
 
 func (p *connPool) identifier(addr string) id.ID {
 	var identifier id.ID
-	identifier.UnmarshalText([]byte(addr[:len(addr)-4]))
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := identifier.UnmarshalText([]byte(host)); err != nil {
+		panic(err)
+	}
 	return identifier
 }
