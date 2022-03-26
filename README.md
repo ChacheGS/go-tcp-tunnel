@@ -1,4 +1,4 @@
-# TCP tunnel
+# Go TCP tunnel
 [![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://pkg.go.dev/github.com/jlandowner/go-tcp-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/jlandowner/go-tcp-tunnel)](https://goreportcard.com/report/github.com/jlandowner/go-tcp-tunnel) [![Github All Releases](https://img.shields.io/github/downloads/jlandowner/go-tcp-tunnel/total.svg)](https://github.com/jlandowner/go-tcp-tunnel/releases)
 
 Go TCP tunnel is a TCP reverse tunnel proxy to expose your local backends behind a firewall to the public.
