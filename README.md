@@ -16,6 +16,18 @@ Common use cases:
 * Hosting a game server from home
 * Developing webhook integrations
 
+> NOTE:
+> 
+> This project is forked from https://github.com/mmatczuk/go-http-tunnel
+> 
+> Here are some of the updates from the original
+> * Focus on TCP proxy
+> * Remove some old dependencies
+> * Package as Docker image and support Kubernetes
+>
+> This repository is activly maintained 
+
+
 ## Getting started
 
 TODO
@@ -68,6 +80,7 @@ The tunnel is based HTTP/2 for speed and security. There is a single TCP connect
 ## License
 
 Copyright (C) 2017 Michał Matczuk
+
 Copyright (C) 2022 jlandowner
 
 This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/jlandowner/go-tcp-tunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.
