@@ -12,6 +12,9 @@ spec:
       targetPort: tunnel
       protocol: TCP
       name: tunnel
+      {{- if .Values.server.service.nodePort }}
+      nodePort: {{ .Values.server.service.nodePort }}
+      {{- end }}
     {{- with .Values.server.tunnelService }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

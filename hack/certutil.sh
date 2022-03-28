@@ -42,9 +42,18 @@ function secretCmd() {
     set -e
     local name=$1
     local dir=$2
-    local contextOption=$3
-    local dryrunOption=$4
-    cmd="kubectl create secret tls $name --cert=$dir/tls.crt --key=$dir/tls.key $contextOption $dryrunOption -o yaml > $dir/secret.yaml"
+    local isInstall=$3
+    shift 3
+    local options=$@
+
+    [[ ! -d $dir ]] && echo "ERR: Dir '$dir' is not found. Run first certutil.sh cert commannd" && usage_exit
+
+    [[ ! -f $dir/tls.key ]] && echo "ERR: Keyfile '$dir/tls.key' is not found" && usage_exit
+    [[ ! -f $dir/tls.crt ]] && echo "ERR: Keyfile '$dir/tls.crt' is not found" && usage_exit
+
+    [[ $isInstall -ne 1 ]] && dryrunOption="--dry-run"
+
+    cmd="kubectl create secret tls $name --cert=$dir/tls.crt --key=$dir/tls.key $dryrunOption -o=yaml $options > $dir/secret.yaml"
     echo $cmd
     eval $cmd
     [[ $dryrunOption != "" ]] && echo "Successfully generated k8s secret" || echo "Successfully installed secret $name"
@@ -61,7 +70,7 @@ usage:
 
     * Generate Kubernetes TLS secret
     certutil.sh secert
-    certutil.sh secert --install --context myk8scluster --dir tls
+    certutil.sh secert --install --context myk8scluster --namepace default --dir tls
 EOF
 exit 9
 }
@@ -117,6 +126,15 @@ do
                 shift 1
             fi
             ;;
+        --namespace | --namespace=*)
+            if [[ ${OPT#*=} == $OPT ]];then
+                namespace=$2
+                shift 2
+            else
+                namespace=${OPT#*=}
+                shift 1
+            fi
+            ;;
         --install)
             isInstall=1
             shift 1
@@ -137,9 +155,10 @@ case $cmd in
     secret)
         [[ $name == "" ]] && name=go-tcp-tunnel-cert
         [[ $dir == "" ]] && dir=tls
-        [[ $context != "" ]] && contextOption="--context $context"
-        [[ $isInstall -ne 1 ]] && dryrunOption="--dry-run"
-        secretCmd $name $dir $contextOption $dryrunOption
+        [[ $isInstall == "" ]] && isInstall=0
+        [[ $context != "" ]] && option="--context $context"
+        [[ $namespace != "" ]] && option="$option --namespace $namespace"
+        secretCmd $name $dir $isInstall $option
         ;;
     *)
         usage_exit "ERR invalid command $cmd"
