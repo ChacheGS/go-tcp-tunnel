@@ -44,7 +44,7 @@ function secretCmd() {
     local dir=$2
     local isInstall=$3
     shift 3
-    local options=$@
+    local options=$*
 
     [[ ! -d $dir ]] && echo "ERR: Dir '$dir' is not found. Run first certutil.sh cert commannd" && usage_exit
 
@@ -69,8 +69,8 @@ usage:
     certutil.sh cert --addr localhost --expire-days 36500 --dir tls
 
     * Generate Kubernetes TLS secret
-    certutil.sh secert
-    certutil.sh secert --install --context myk8scluster --namepace default --dir tls
+    certutil.sh secret
+    certutil.sh secret --install --context myk8scluster --namepace default --dir tls
 EOF
 exit 9
 }
