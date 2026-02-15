@@ -6,11 +6,11 @@
 package client
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"sort"
@@ -106,7 +106,7 @@ func CompleteArgs(fs *flag.FlagSet) error {
 	return nil
 }
 
-func Execute() error {
+func Execute(ctx context.Context) error {
 	logger := log.NewFilterLogger(log.NewStdLogger(), opts.logLevel)
 
 	// read configuration file
@@ -180,7 +180,7 @@ func Execute() error {
 		return fmt.Errorf("failed to create client: %s", err)
 	}
 
-	return client.Start()
+	return client.Start(ctx)
 }
 
 func tlsConfig(config *ClientConfig) (*tls.Config, error) {
@@ -194,12 +194,12 @@ func tlsConfig(config *ClientConfig) (*tls.Config, error) {
 	}
 
 	roots := x509.NewCertPool()
-	rootPEM, err := ioutil.ReadFile(opts.rootCA)
+	rootPEM, err := os.ReadFile(opts.rootCA)
 	if err != nil {
 		return nil, err
 	}
 	if ok := roots.AppendCertsFromPEM(rootPEM); !ok {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse CA certificate PEM")
 	}
 
 	host, _, err := net.SplitHostPort(config.ServerAddr)
@@ -210,7 +210,7 @@ func tlsConfig(config *ClientConfig) (*tls.Config, error) {
 	return &tls.Config{
 		ServerName:         host,
 		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: roots == nil,
+		InsecureSkipVerify: len(roots.Subjects()) == 0,
 		RootCAs:            roots,
 	}, nil
 }

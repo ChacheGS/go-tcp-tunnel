@@ -46,7 +46,7 @@ function secretCmd() {
     shift 3
     local options=$*
 
-    [[ ! -d $dir ]] && echo "ERR: Dir '$dir' is not found. Run first certutil.sh cert commannd" && usage_exit
+    [[ ! -d $dir ]] && echo "ERR: Dir '$dir' is not found. Run first certutil.sh cert command" && usage_exit
 
     [[ ! -f $dir/tls.key ]] && echo "ERR: Keyfile '$dir/tls.key' is not found" && usage_exit
     [[ ! -f $dir/tls.crt ]] && echo "ERR: Keyfile '$dir/tls.crt' is not found" && usage_exit

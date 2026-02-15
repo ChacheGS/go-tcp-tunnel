@@ -7,8 +7,8 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -48,7 +48,7 @@ type ClientConfig struct {
 }
 
 func loadClientConfigFromFile(file string) (*ClientConfig, error) {
-	buf, err := ioutil.ReadFile(file)
+	buf, err := os.ReadFile(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %q: %s", file, err)
 	}

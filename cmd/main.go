@@ -6,9 +6,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 
 	"github.com/jlandowner/go-tcp-tunnel/cmd/client"
 	"github.com/jlandowner/go-tcp-tunnel/cmd/server"
@@ -69,6 +71,9 @@ func main() {
 	}
 	fmt.Print(banner)
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	if flag.NArg() > 0 {
 		args := flag.Args()
 		switch args[0] {
@@ -79,7 +84,7 @@ func main() {
 				fatal("%v", err)
 			}
 
-			if err := client.Execute(); err != nil {
+			if err := client.Execute(ctx); err != nil {
 				clientCmd.Usage()
 				fatal("%v", err)
 			}
@@ -87,14 +92,16 @@ func main() {
 		case "server":
 			serverCmd.Parse(args[1:])
 
-			if err := server.Execute(); err != nil {
+			if err := server.Execute(ctx); err != nil {
 				serverCmd.Usage()
 				fatal("ERROR: %v", err)
 			}
+			return
 		}
+	} else {
+		flag.Usage()
+		fatal("ERROR: neither client nor server is specified")
 	}
-	flag.Usage()
-	fatal("ERROR: nor client or server is specified")
 }
 
 func fatal(format string, a ...interface{}) {

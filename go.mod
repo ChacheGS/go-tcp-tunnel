@@ -1,6 +1,6 @@
 module github.com/jlandowner/go-tcp-tunnel
 
-go 1.23
+go 1.26
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.2

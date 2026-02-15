@@ -6,6 +6,7 @@
 package tunnel_test
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -35,6 +36,7 @@ func echoTCP(l net.Listener) {
 			return
 		}
 		go func() {
+			defer conn.Close()
 			io.Copy(conn, conn)
 		}()
 	}
@@ -63,7 +65,7 @@ func makeTunnelServer(t testing.TB) *tunnel.Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go s.Start()
+	go s.Start(context.Background())
 
 	return s
 }
@@ -93,7 +95,7 @@ func makeTunnelClient(t testing.TB, serverAddr string, tcpLocalAddr, tcpAddr net
 		t.Fatal(err)
 	}
 	go func() {
-		if err := c.Start(); err != nil {
+		if err := c.Start(context.Background()); err != nil {
 			t.Log(err)
 		}
 	}()
@@ -116,8 +118,13 @@ func TestIntegration(t *testing.T) {
 	c := makeTunnelClient(t, s.Addr(),
 		tcpLocalAddr, tcp.Addr(),
 	)
-	// FIXME: replace sleep with client state change watch when ready
-	time.Sleep(500 * time.Millisecond)
+	// Wait for client to connect
+	for i := 0; i < 10; i++ {
+		if c.Connected() {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 	defer c.Stop()
 
 	payload := randPayload(payloadInitialSize, payloadLen)

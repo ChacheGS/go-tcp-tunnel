@@ -81,7 +81,7 @@ func TestClient_DialBackoff(t *testing.T) {
 		t.Fatal("Wait mismatch", err)
 	}
 
-	if err.Error() != "backoff limit exeded: foobar" {
+	if err.Error() != "backoff limit exceeded: foobar" {
 		t.Fatal("Error mismatch", err)
 	}
 }
