@@ -14,7 +14,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -127,7 +126,7 @@ func (s *Server) disconnected(identifier id.ID) {
 
 // Start starts accepting connections form clients. For accepting http traffic
 // from end users server must be run as handler on http server.
-func (s *Server) Start() error {
+func (s *Server) Start(ctx context.Context) error {
 	addr := s.listener.Addr().String()
 
 	s.logger.Log(
@@ -136,10 +135,15 @@ func (s *Server) Start() error {
 		"addr", addr,
 	)
 
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
+			if errors.Is(err, net.ErrClosed) {
 				s.logger.Log(
 					"level", 1,
 					"action", "control connection listener closed",
@@ -157,13 +161,15 @@ func (s *Server) Start() error {
 			continue
 		}
 
-		if err := keepAlive(conn.(*net.TCPConn)); err != nil {
-			s.logger.Log(
-				"level", 0,
-				"msg", "TCP keepalive for control connection failed",
-				"addr", addr,
-				"err", err,
-			)
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			if err := keepAlive(tcpConn); err != nil {
+				s.logger.Log(
+					"level", 0,
+					"msg", "TCP keepalive for control connection failed",
+					"addr", addr,
+					"err", err,
+				)
+			}
 		}
 
 		go s.handleClient(tls.Server(conn, s.config.TLSConfig))
@@ -265,6 +271,7 @@ func (s *Server) handleClient(conn net.Conn) {
 		)
 		goto reject
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("status %s", resp.Status)
@@ -277,7 +284,7 @@ func (s *Server) handleClient(conn net.Conn) {
 	}
 
 	if resp.ContentLength == 0 {
-		err = fmt.Errorf("tunnels Content-Legth: 0")
+		err = fmt.Errorf("tunnels Content-Length: 0")
 		logger.Log(
 			"level", 2,
 			"msg", "handshake failed",
@@ -330,9 +337,9 @@ reject:
 	if inConnPool {
 		s.notifyError(err, identifier)
 		s.connPool.DeleteConn(identifier)
+	} else {
+		conn.Close()
 	}
-
-	conn.Close()
 }
 
 // notifyError tries to send error to client.
@@ -357,7 +364,9 @@ func (s *Server) notifyError(serverError error, identifier id.ID) {
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancel()
 
-	s.httpClient.Do(req.WithContext(ctx))
+	if resp, err := s.httpClient.Do(req.WithContext(ctx)); err == nil {
+		resp.Body.Close()
+	}
 }
 
 // addTunnels invokes addHost or addListener based on data from proto.Tunnel. If
@@ -429,8 +438,7 @@ func (s *Server) listen(l net.Listener, identifier id.ID) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") ||
-				strings.Contains(err.Error(), "Listener closed") {
+			if errors.Is(err, net.ErrClosed) {
 				s.logger.Log(
 					"level", 2,
 					"action", "listener closed",
@@ -457,14 +465,16 @@ func (s *Server) listen(l net.Listener, identifier id.ID) {
 
 		msg.ForwardedHost = l.Addr().String()
 
-		if err := keepAlive(conn.(*net.TCPConn)); err != nil {
-			s.logger.Log(
-				"level", 1,
-				"msg", "TCP keepalive for tunneled connection failed",
-				"identifier", identifier,
-				"ctrlMsg", msg,
-				"err", err,
-			)
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			if err := keepAlive(tcpConn); err != nil {
+				s.logger.Log(
+					"level", 1,
+					"msg", "TCP keepalive for tunneled connection failed",
+					"identifier", identifier,
+					"ctrlMsg", msg,
+					"err", err,
+				)
+			}
 		}
 
 		go func() {
@@ -501,6 +511,7 @@ func (s *Server) proxyConn(identifier id.ID, conn net.Conn, msg *proto.ControlMe
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	req = req.WithContext(ctx)
 
 	done := make(chan struct{})

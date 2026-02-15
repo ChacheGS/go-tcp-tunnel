@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+var chunkRegex = regexp.MustCompile("(.{7})")
+
 // ID is the type representing a generated ID.
 type ID [32]byte
 
@@ -32,36 +34,10 @@ func (i ID) String() string {
 	ss := base32.StdEncoding.EncodeToString(i[:])
 	ss = strings.Trim(ss, "=")
 
-	// Add a Luhn check 'digit' for the ID.
-	// ss, err := luhnify(ss)
-	// if err != nil {
-	// 	// Should never happen
-	// 	panic(err)
-	// }
-
-	// Return the given ID as chunks.
 	ss = chunkify(ss)
 
 	return ss
 }
-
-// // Compares the two given IDs.  Note that this function is NOT SAFE AGAINST
-// // TIMING ATTACKS.  If you are simply checking for equality, please use the
-// // Equals function, which is.
-// func (i ID) Compare(other ID) int {
-// 	return bytes.Compare(i[:], other[:])
-// }
-
-// // Checks the two given IDs for equality.  This function uses a constant-time
-// // comparison algorithm to prevent timing attacks.
-// func (i ID) Equals(other ID) bool {
-// 	return subtle.ConstantTimeCompare(i[:], other[:]) == 1
-// }
-
-// // Implements the `TextMarshaler` interface from the encoding package.
-// func (i *ID) MarshalText() ([]byte, error) {
-// 	return []byte(i.String()), nil
-// }
 
 // Implements the `TextUnmarshaler` interface from the encoding package.
 func (i *ID) UnmarshalText(bs []byte) (err error) {
@@ -77,12 +53,6 @@ func (i *ID) UnmarshalText(bs []byte) (err error) {
 		return errors.New("device ID invalid: incorrect length")
 	}
 
-	// Remove & verify Luhn check digits
-	// id, err = unluhnify(id)
-	// if err != nil {
-	// 	return err
-	// }
-
 	// Base32 decode
 	dec, err := base32.StdEncoding.DecodeString(id + "====")
 	if err != nil {
@@ -94,61 +64,9 @@ func (i *ID) UnmarshalText(bs []byte) (err error) {
 	return nil
 }
 
-// Add Luhn check digits to a string, returning the new one.
-// func luhnify(s string) (string, error) {
-// 	if len(s) != 52 {
-// 		panic("unsupported string length")
-// 	}
-
-// 	// Split the string into chunks of length 13, and add a Luhn check digit to
-// 	// each one.
-// 	res := make([]string, 0, 4)
-// 	for i := 0; i < 4; i++ {
-// 		chunk := s[i*13 : (i+1)*13]
-
-// 		l, err := luhn.Base32.Generate(chunk)
-// 		if err != nil {
-// 			return "", err
-// 		}
-
-// 		res = append(res, fmt.Sprintf("%s%c", chunk, l))
-// 	}
-
-// 	return res[0] + res[1] + res[2] + res[3], nil
-// }
-
-// Remove Luhn check digits from the given string, validating that they are
-// correct.
-// func unluhnify(s string) (string, error) {
-// 	if len(s) != 56 {
-// 		return "", fmt.Errorf("unsupported string length %d", len(s))
-// 	}
-
-// 	res := make([]string, 0, 4)
-// 	for i := 0; i < 4; i++ {
-// 		// 13 characters, plus the Luhn digit.
-// 		chunk := s[i*14 : (i+1)*14]
-
-// 		// Get the expected check digit.
-// 		l, err := luhn.Base32.Generate(chunk[0:13])
-// 		if err != nil {
-// 			return "", err
-// 		}
-
-// 		// Validate the digits match.
-// 		if fmt.Sprintf("%c", l) != chunk[13:] {
-// 			return "", errors.New("check digit incorrect")
-// 		}
-
-// 		res = append(res, chunk[0:13])
-// 	}
-
-// 	return res[0] + res[1] + res[2] + res[3], nil
-// }
-
 // Returns a string split into chunks of size 7.
 func chunkify(s string) string {
-	s = regexp.MustCompile("(.{7})").ReplaceAllString(s, "$1-")
+	s = chunkRegex.ReplaceAllString(s, "$1-")
 	s = strings.Trim(s, "-")
 	return s
 }

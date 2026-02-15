@@ -6,11 +6,11 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -62,14 +62,14 @@ func Command() *flag.FlagSet {
 	cmd.StringVar(&opts.tunnelAddr, "addr", ":5223", "Public address listening for tunnel client")
 	cmd.StringVar(&opts.tlsCrt, "tls-crt", "tls.crt", "Path to a TLS certificate file")
 	cmd.StringVar(&opts.tlsKey, "tls-key", "tls.key", "Path to a TLS key file")
-	cmd.StringVar(&opts.clientCA, "ca-crt", "tls.crt", "Path to the trusted certificate chain used for client certificate authentication")
+	cmd.StringVar(&opts.clientCA, "ca-crt", "ca.crt", "Path to the trusted certificate chain used for client certificate authentication")
 	cmd.StringVar(&opts.clientIDs, "client-ids", "", "Comma-separated list of tunnel client ids, if empty accept all clients with valid client certificate")
 	cmd.IntVar(&opts.logLevel, "log-level", 1, "Level of messages to log, 0-3")
 
 	return cmd
 }
 
-func Execute() error {
+func Execute(ctx context.Context) error {
 	logger := log.NewFilterLogger(log.NewStdLogger(), opts.logLevel)
 
 	tlsconf, err := tlsConfig()
@@ -104,7 +104,7 @@ func Execute() error {
 		}
 	}
 
-	return server.Start()
+	return server.Start(ctx)
 }
 
 func tlsConfig() (*tls.Config, error) {
@@ -120,12 +120,12 @@ func tlsConfig() (*tls.Config, error) {
 	}
 
 	roots := x509.NewCertPool()
-	rootPEM, err := ioutil.ReadFile(opts.clientCA)
+	rootPEM, err := os.ReadFile(opts.clientCA)
 	if err != nil {
 		return nil, err
 	}
 	if ok := roots.AppendCertsFromPEM(rootPEM); !ok {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse CA certificate PEM")
 	}
 	clientAuth := tls.RequireAndVerifyClientCert
 
@@ -139,7 +139,6 @@ func tlsConfig() (*tls.Config, error) {
 		CipherSuites: []uint16{
 			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
-		PreferServerCipherSuites: true,
-		NextProtos:               []string{"h2"},
+		NextProtos: []string{"h2"},
 	}, nil
 }

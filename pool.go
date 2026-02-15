@@ -81,6 +81,7 @@ func (p *connPool) AddConn(conn net.Conn, identifier id.ID) error {
 
 	c, err := p.t.NewClientConn(conn)
 	if err != nil {
+		conn.Close()
 		return err
 	}
 	p.conns[addr] = connPair{
@@ -140,11 +141,11 @@ func (p *connPool) identifier(addr string) id.ID {
 	var identifier id.ID
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		panic(err)
+		return identifier
 	}
 
 	if err := identifier.UnmarshalText([]byte(host)); err != nil {
-		panic(err)
+		return identifier
 	}
 	return identifier
 }

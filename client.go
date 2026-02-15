@@ -6,6 +6,7 @@
 package tunnel
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -91,15 +92,26 @@ func NewClient(config *ClientConfig) (*Client, error) {
 // connection error, or server cannot open requested tunnels. On connection
 // error a backoff policy is used to reestablish the connection. When connected
 // HTTP/2 server is started to handle ControlMessages.
-func (c *Client) Start() error {
+func (c *Client) Start(ctx context.Context) error {
 	c.logger.Log(
 		"level", 1,
 		"action", "start",
 	)
 
+	go func() {
+		<-ctx.Done()
+		c.Stop()
+	}()
+
 	for {
 		conn, err := c.connect()
 		if err != nil {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				// continue
+			}
 			return err
 		}
 
@@ -173,7 +185,9 @@ func (c *Client) dial() (net.Conn, error) {
 			conn, err = d.Dial(network, addr)
 
 			if err == nil {
-				err = keepAlive(conn.(*net.TCPConn))
+				if tcpConn, ok := conn.(*net.TCPConn); ok {
+					err = keepAlive(tcpConn)
+				}
 			}
 			if err == nil {
 				conn = tls.Client(conn, tlsConfig)
@@ -218,7 +232,7 @@ func (c *Client) dial() (net.Conn, error) {
 		// failure
 		d := b.NextBackOff()
 		if d < 0 {
-			return conn, fmt.Errorf("backoff limit exeded: %s", err)
+			return conn, fmt.Errorf("backoff limit exceeded: %s", err)
 		}
 
 		// backoff
@@ -265,7 +279,7 @@ func (c *Client) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			"msg", "unknown action",
 			"ctrlMsg", msg,
 		)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "unknown action", http.StatusBadRequest)
 	}
 	c.logger.Log(
 		"level", 2,
@@ -275,7 +289,7 @@ func (c *Client) serveHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Client) handleHandshakeError(w http.ResponseWriter, r *http.Request) {
-	err := fmt.Errorf(r.Header.Get(proto.HeaderError))
+	err := errors.New(r.Header.Get(proto.HeaderError))
 
 	c.logger.Log(
 		"level", 1,
@@ -296,8 +310,6 @@ func (c *Client) handleHandshake(w http.ResponseWriter, r *http.Request) {
 		"addr", r.RemoteAddr,
 	)
 
-	w.WriteHeader(http.StatusOK)
-
 	b, err := json.Marshal(c.config.Tunnels)
 	if err != nil {
 		c.logger.Log(
@@ -305,8 +317,10 @@ func (c *Client) handleHandshake(w http.ResponseWriter, r *http.Request) {
 			"msg", "handshake failed",
 			"err", err,
 		)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 }
 
@@ -324,4 +338,11 @@ func (c *Client) Stop() {
 		c.conn.Close()
 	}
 	c.conn = nil
+}
+
+// Connected returns true if client is connected to server.
+func (c *Client) Connected() bool {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return c.conn != nil
 }

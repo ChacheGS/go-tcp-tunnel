@@ -37,4 +37,4 @@ endif
 	sed -i.bk \
 		-e "s/version: [0-9]\+.[0-9]\+.[0-9]\+.*/version: ${CHART_VERSION:v%=%}/" \
 		-e "s/appVersion: v[0-9]\+.[0-9]\+.[0-9]\+.*/appVersion: ${VERSION}/" \
-		kubernetes/go-tcp-tunnel/Chart.yaml
+		kubernetes/chart/src/Chart.yaml
