@@ -103,7 +103,7 @@ func (r *registry) Unsubscribe(identifier id.ID) *RegistryItem {
 
 	if i.Hosts != nil {
 		for _, h := range i.Hosts {
-			delete(r.hosts, h)
+			delete(r.hosts, trimPort(h))
 		}
 	}
 

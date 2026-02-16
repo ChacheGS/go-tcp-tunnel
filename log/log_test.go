@@ -12,6 +12,25 @@ import (
 	"github.com/jlandowner/go-tcp-tunnel/tunnelmock"
 )
 
+func TestNopLogger_Log(t *testing.T) {
+	t.Parallel()
+
+	logger := NewNopLogger()
+	if err := logger.Log("key", "val"); err != nil {
+		t.Fatal("NopLogger.Log should return nil, got:", err)
+	}
+}
+
+func TestStdLogger_Log(t *testing.T) {
+	t.Parallel()
+
+	logger := NewStdLogger()
+	// Should not panic or error
+	if err := logger.Log("key", "val", "num", 42); err != nil {
+		t.Fatal("StdLogger.Log should return nil, got:", err)
+	}
+}
+
 func TestContext_Log(t *testing.T) {
 	t.Parallel()
 

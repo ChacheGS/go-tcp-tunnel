@@ -9,8 +9,32 @@ import (
 	"errors"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 )
+
+func TestControlMessage_AllHeadersMissing(t *testing.T) {
+	t.Parallel()
+
+	r := http.Request{}
+	r.Header = http.Header{}
+
+	_, err := ReadControlMessage(&r)
+	if err == nil {
+		t.Fatal("expected error for all missing headers")
+	}
+
+	errStr := err.Error()
+	if !strings.Contains(errStr, HeaderAction) {
+		t.Errorf("expected error to mention %s", HeaderAction)
+	}
+	if !strings.Contains(errStr, HeaderForwardedHost) {
+		t.Errorf("expected error to mention %s", HeaderForwardedHost)
+	}
+	if !strings.Contains(errStr, HeaderForwardedProto) {
+		t.Errorf("expected error to mention %s", HeaderForwardedProto)
+	}
+}
 
 func TestControlMessageWriteRead(t *testing.T) {
 	t.Parallel()
