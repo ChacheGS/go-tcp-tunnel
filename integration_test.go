@@ -23,6 +23,7 @@ import (
 	tunnel "github.com/jlandowner/go-tcp-tunnel"
 	"github.com/jlandowner/go-tcp-tunnel/log"
 	"github.com/jlandowner/go-tcp-tunnel/proto"
+	"golang.org/x/net/websocket"
 )
 
 const (
@@ -329,6 +330,121 @@ func TestIntegration_HTTPSubdomainTunnel(t *testing.T) {
 	if string(body) != "hello from local app" {
 		t.Fatalf("expected body %q, got %q", "hello from local app", string(body))
 	}
+}
+
+// TestIntegration_HTTPSubdomainTunnel_WebSocket proves that a WebSocket
+// upgrade handshake and subsequent frames survive the subdomain-routed HTTP
+// tunnel path untouched, including across an idle period, since the server
+// only ever reads the Host header before handing the connection off to the
+// opaque byte-pipe proxy.
+func TestIntegration_HTTPSubdomainTunnel_WebSocket(t *testing.T) {
+	// local WebSocket echo server
+	wsHandler := websocket.Handler(func(ws *websocket.Conn) {
+		io.Copy(ws, ws)
+	})
+	localLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer localLn.Close()
+	go http.Serve(localLn, wsHandler)
+
+	// tunnel server with base domain configured
+	s, err := tunnel.NewServer(&tunnel.ServerConfig{
+		Addr:          ":0",
+		AutoSubscribe: true,
+		TLSConfig:     tlsConfig(),
+		Logger:        log.NewStdLogger(),
+		BaseDomain:    "tunnel.example.com",
+		HTTPAddr:      "127.0.0.1:0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go s.Start(context.Background())
+	defer s.Stop()
+
+	// give the server a moment to open both listeners
+	time.Sleep(50 * time.Millisecond)
+
+	tcpProxy := tunnel.NewMultiTCPProxy(map[string]string{
+		"myapp": localLn.Addr().String(),
+	}, log.NewStdLogger())
+
+	c, err := tunnel.NewClient(&tunnel.ClientConfig{
+		ServerAddr:      s.Addr(),
+		TLSClientConfig: tlsConfig(),
+		Tunnels: map[string]*proto.Tunnel{
+			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+		},
+		Proxy: tunnel.Proxy(tunnel.ProxyFuncs{
+			TCP: tcpProxy.Proxy,
+		}),
+		Logger: log.NewStdLogger(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go c.Start(ctx)
+
+	deadline := time.After(5 * time.Second)
+	for !c.Connected() {
+		select {
+		case <-deadline:
+			t.Fatal("client did not connect within timeout")
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	conn, err := net.Dial("tcp", s.HTTPAddr())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	wsConfig, err := websocket.NewConfig("ws://myapp.tunnel.example.com/", "http://myapp.tunnel.example.com/")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ws, err := websocket.NewClient(wsConfig, conn)
+	if err != nil {
+		t.Fatalf("websocket upgrade failed: %v", err)
+	}
+	defer ws.Close()
+
+	// first message, immediately after the handshake
+	if err := sendAndExpectEcho(ws, "hello over subdomain tunnel"); err != nil {
+		t.Fatal(err)
+	}
+
+	// idle period to prove the connection isn't torn down or corrupted by
+	// any timeout/buffering logic in the new routing path
+	time.Sleep(250 * time.Millisecond)
+
+	// second message, after the idle period
+	if err := sendAndExpectEcho(ws, "still alive after idle"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func sendAndExpectEcho(ws *websocket.Conn, msg string) error {
+	if err := websocket.Message.Send(ws, msg); err != nil {
+		return fmt.Errorf("send failed: %w", err)
+	}
+	var reply string
+	ws.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err := websocket.Message.Receive(ws, &reply); err != nil {
+		return fmt.Errorf("receive failed: %w", err)
+	}
+	if reply != msg {
+		return fmt.Errorf("expected echo %q, got %q", msg, reply)
+	}
+	return nil
 }
 
 func tlsConfig() *tls.Config {
