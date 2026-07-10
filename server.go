@@ -36,6 +36,15 @@ type ServerConfig struct {
 	// Listener specifies optional listener for client connections. If nil
 	// tls.Listen("tcp", Addr, TLSConfig) is used.
 	Listener net.Listener
+	// BaseDomain, if set, enables subdomain-routed http tunnels. A client
+	// tunnel with Host "myapp" becomes reachable at myapp.<BaseDomain>.
+	// Leave empty to disable http tunnels entirely.
+	BaseDomain string
+	// HTTPAddr is the internal address the server listens on for
+	// subdomain-routed http tunnel traffic, e.g. from a reverse proxy that
+	// terminates public TLS for *.<BaseDomain>. Only used if BaseDomain is
+	// also set.
+	HTTPAddr string
 	// Logger is optional logger. If nil logging is disabled.
 	Logger log.Logger
 }

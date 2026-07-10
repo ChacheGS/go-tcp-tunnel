@@ -688,3 +688,28 @@ func TestServer_handleClient_NotSubscribed(t *testing.T) {
 		t.Fatal("handleClient did not return")
 	}
 }
+
+func TestServer_HTTPAddr_StoredOnConfig(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:   ln,
+		BaseDomain: "tunnel.example.com",
+		HTTPAddr:   "127.0.0.1:0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.config.BaseDomain != "tunnel.example.com" {
+		t.Fatalf("expected base domain to be stored, got %q", s.config.BaseDomain)
+	}
+	if s.config.HTTPAddr != "127.0.0.1:0" {
+		t.Fatalf("expected http addr to be stored, got %q", s.config.HTTPAddr)
+	}
+}
