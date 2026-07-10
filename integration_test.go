@@ -6,6 +6,7 @@
 package tunnel_test
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -13,6 +14,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"sync"
 	"testing"
@@ -234,6 +236,99 @@ func freeAddr() net.Addr {
 
 func port(addr net.Addr) string {
 	return fmt.Sprint(addr.(*net.TCPAddr).Port)
+}
+
+func TestIntegration_HTTPSubdomainTunnel(t *testing.T) {
+	// local HTTP echo server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello from local app"))
+	})
+	localLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer localLn.Close()
+	go http.Serve(localLn, mux)
+
+	// tunnel server with base domain configured
+	s, err := tunnel.NewServer(&tunnel.ServerConfig{
+		Addr:          ":0",
+		AutoSubscribe: true,
+		TLSConfig:     tlsConfig(),
+		Logger:        log.NewStdLogger(),
+		BaseDomain:    "tunnel.example.com",
+		HTTPAddr:      "127.0.0.1:0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go s.Start(context.Background())
+	defer s.Stop()
+
+	// give the server a moment to open both listeners
+	time.Sleep(50 * time.Millisecond)
+
+	tcpProxy := tunnel.NewMultiTCPProxy(map[string]string{
+		"myapp": localLn.Addr().String(),
+	}, log.NewStdLogger())
+
+	c, err := tunnel.NewClient(&tunnel.ClientConfig{
+		ServerAddr:      s.Addr(),
+		TLSClientConfig: tlsConfig(),
+		Tunnels: map[string]*proto.Tunnel{
+			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+		},
+		Proxy: tunnel.Proxy(tunnel.ProxyFuncs{
+			TCP: tcpProxy.Proxy,
+		}),
+		Logger: log.NewStdLogger(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go c.Start(ctx)
+
+	deadline := time.After(5 * time.Second)
+	for !c.Connected() {
+		select {
+		case <-deadline:
+			t.Fatal("client did not connect within timeout")
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "http://myapp.tunnel.example.com/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.Dial("tcp", s.HTTPAddr())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err := req.Write(conn); err != nil {
+		t.Fatal(err)
+	}
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+
+	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "hello from local app" {
+		t.Fatalf("expected body %q, got %q", "hello from local app", string(body))
+	}
 }
 
 func tlsConfig() *tls.Config {

@@ -753,6 +753,15 @@ func (s *Server) Addr() string {
 	return s.listener.Addr().String()
 }
 
+// HTTPAddr returns the address of the internal subdomain-routing listener,
+// or "" if it is not running.
+func (s *Server) HTTPAddr() string {
+	if s.httpListener == nil {
+		return ""
+	}
+	return s.httpListener.Addr().String()
+}
+
 // Stop closes the server.
 func (s *Server) Stop() {
 	s.logger.Log(
