@@ -14,9 +14,9 @@ import (
 	"os"
 	"strings"
 
-	tunnel "github.com/jlandowner/go-tcp-tunnel"
-	"github.com/jlandowner/go-tcp-tunnel/id"
-	"github.com/jlandowner/go-tcp-tunnel/log"
+	tunnel "github.com/ChacheGS/go-tcp-tunnel"
+	"github.com/ChacheGS/go-tcp-tunnel/id"
+	"github.com/ChacheGS/go-tcp-tunnel/log"
 )
 
 const usage1 string = `Usage: go-tcp-tunnel server [OPTIONS]

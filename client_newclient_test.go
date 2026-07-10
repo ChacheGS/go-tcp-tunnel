@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/jlandowner/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-tcp-tunnel/proto"
 )
 
 func TestNewClient_Validation(t *testing.T) {

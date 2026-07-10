@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/jlandowner/go-tcp-tunnel/log"
+	"github.com/ChacheGS/go-tcp-tunnel/log"
 )
 
 func transfer(dst io.Writer, src io.Reader, logger log.Logger) {

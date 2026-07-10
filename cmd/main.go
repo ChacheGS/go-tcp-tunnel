@@ -12,8 +12,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/jlandowner/go-tcp-tunnel/cmd/client"
-	"github.com/jlandowner/go-tcp-tunnel/cmd/server"
+	"github.com/ChacheGS/go-tcp-tunnel/cmd/client"
+	"github.com/ChacheGS/go-tcp-tunnel/cmd/server"
 )
 
 const banner = `
@@ -42,7 +42,7 @@ Author:
 	written by M. Matczuk (mmatczuk@gmail.com)
 
 Bugs:
-	Submit bugs to https://github.com/jlandowner/go-tcp-tunnel/issues
+	Submit bugs to https://github.com/ChacheGS/go-tcp-tunnel/issues
 
 `
 

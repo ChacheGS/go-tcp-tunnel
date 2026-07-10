@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jlandowner/go-tcp-tunnel/log"
-	"github.com/jlandowner/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-tcp-tunnel/log"
+	"github.com/ChacheGS/go-tcp-tunnel/proto"
 )
 
 func TestCompleteArgs(t *testing.T) {

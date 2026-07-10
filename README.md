@@ -1,5 +1,5 @@
 # Go TCP tunnel
-[![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://pkg.go.dev/github.com/jlandowner/go-tcp-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/jlandowner/go-tcp-tunnel)](https://goreportcard.com/report/github.com/jlandowner/go-tcp-tunnel) [![Container](http://img.shields.io/badge/container-ready-orange.svg)](https://github.com/jlandowner/go-tcp-tunnel/pkgs/container/go-tcp-tunnel)
+[![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://pkg.go.dev/github.com/ChacheGS/go-tcp-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/ChacheGS/go-tcp-tunnel)](https://goreportcard.com/report/github.com/ChacheGS/go-tcp-tunnel) [![Container](http://img.shields.io/badge/container-ready-orange.svg)](https://github.com/ChacheGS/go-tcp-tunnel/pkgs/container/go-tcp-tunnel)
 
 Go TCP tunnel is a TCP reverse tunnel proxy to expose your local backends behind a firewall to the public.
 The reverse tunnel is based on HTTP/2 with mutual TLS (mTLS). It enables you to share your localhost when you don't have a public IP.
@@ -126,4 +126,4 @@ Copyright (C) 2017 Michał Matczuk
 
 Copyright (C) 2022 jlandowner
 
-This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/jlandowner/go-tcp-tunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.
+This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/ChacheGS/go-tcp-tunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.

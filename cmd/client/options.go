@@ -16,10 +16,10 @@ import (
 	"sort"
 
 	backoff "github.com/cenkalti/backoff/v4"
-	tunnel "github.com/jlandowner/go-tcp-tunnel"
-	"github.com/jlandowner/go-tcp-tunnel/id"
-	"github.com/jlandowner/go-tcp-tunnel/log"
-	"github.com/jlandowner/go-tcp-tunnel/proto"
+	tunnel "github.com/ChacheGS/go-tcp-tunnel"
+	"github.com/ChacheGS/go-tcp-tunnel/id"
+	"github.com/ChacheGS/go-tcp-tunnel/log"
+	"github.com/ChacheGS/go-tcp-tunnel/proto"
 	"gopkg.in/yaml.v2"
 )
 

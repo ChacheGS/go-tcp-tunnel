@@ -8,7 +8,7 @@ package tunnel
 import (
 	"io"
 
-	"github.com/jlandowner/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-tcp-tunnel/proto"
 )
 
 // ProxyFunc is responsible for forwarding a remote connection to local server

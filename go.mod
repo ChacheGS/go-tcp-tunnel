@@ -1,4 +1,4 @@
-module github.com/jlandowner/go-tcp-tunnel
+module github.com/ChacheGS/go-tcp-tunnel
 
 go 1.26
 

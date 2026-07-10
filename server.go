@@ -20,9 +20,9 @@ import (
 
 	"golang.org/x/net/http2"
 
-	"github.com/jlandowner/go-tcp-tunnel/id"
-	"github.com/jlandowner/go-tcp-tunnel/log"
-	"github.com/jlandowner/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-tcp-tunnel/id"
+	"github.com/ChacheGS/go-tcp-tunnel/log"
+	"github.com/ChacheGS/go-tcp-tunnel/proto"
 )
 
 // ServerConfig defines configuration for the Server.

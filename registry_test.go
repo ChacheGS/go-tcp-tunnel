@@ -3,7 +3,7 @@ package tunnel
 import (
 	"testing"
 
-	"github.com/jlandowner/go-tcp-tunnel/id"
+	"github.com/ChacheGS/go-tcp-tunnel/id"
 )
 
 func newTestID(data string) id.ID {

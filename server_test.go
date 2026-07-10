@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jlandowner/go-tcp-tunnel/id"
-	"github.com/jlandowner/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-tcp-tunnel/id"
+	"github.com/ChacheGS/go-tcp-tunnel/proto"
 )
 
 // testTLSConfig creates a CA + server + client cert setup for mTLS testing.

@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	tunnel "github.com/jlandowner/go-tcp-tunnel"
-	"github.com/jlandowner/go-tcp-tunnel/log"
-	"github.com/jlandowner/go-tcp-tunnel/proto"
+	tunnel "github.com/ChacheGS/go-tcp-tunnel"
+	"github.com/ChacheGS/go-tcp-tunnel/log"
+	"github.com/ChacheGS/go-tcp-tunnel/proto"
 	"golang.org/x/net/websocket"
 )
 

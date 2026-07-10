@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jlandowner/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-tcp-tunnel/proto"
 )
 
 func TestNewStreamProxy(t *testing.T) {
