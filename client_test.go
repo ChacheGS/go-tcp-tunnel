@@ -9,11 +9,14 @@ import (
 	"crypto/tls"
 	"errors"
 	"net"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/jlandowner/go-tcp-tunnel/log"
 	"github.com/jlandowner/go-tcp-tunnel/proto"
 	"github.com/jlandowner/go-tcp-tunnel/tunnelmock"
 )
@@ -83,5 +86,40 @@ func TestClient_DialBackoff(t *testing.T) {
 
 	if err.Error() != "backoff limit exceeded: foobar" {
 		t.Fatal("Error mismatch", err)
+	}
+}
+
+func TestClient_handleTunnelInfo_InvokesCallback(t *testing.T) {
+	t.Parallel()
+
+	logger := log.NewStdLogger()
+	c := &Client{
+		config: &ClientConfig{Logger: logger},
+		logger: logger,
+	}
+
+	received := make(chan map[string]string, 1)
+	c.onTunnelInfo = func(hosts map[string]string) {
+		received <- hosts
+	}
+
+	body := `{"myapp":"myapp.tunnel.example.com"}`
+	req := httptest.NewRequest(http.MethodConnect, "/", strings.NewReader(body))
+	req.Header.Set(proto.HeaderTunnelInfo, "1")
+	w := httptest.NewRecorder()
+
+	c.serveHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	select {
+	case hosts := <-received:
+		if hosts["myapp"] != "myapp.tunnel.example.com" {
+			t.Fatalf("expected myapp -> myapp.tunnel.example.com, got %v", hosts)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("onTunnelInfo callback was not invoked")
 	}
 }

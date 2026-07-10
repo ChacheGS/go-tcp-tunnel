@@ -1024,7 +1024,6 @@ func TestServer_notifyTunnelInfo_NoOpWhenEmpty(t *testing.T) {
 }
 
 func TestServer_notifyTunnelInfo_SendsPushMessage(t *testing.T) {
-	t.Skip("enabled in a later task once client.onTunnelInfo exists")
 	t.Parallel()
 
 	serverTLS, clientTLS := testTLSConfig(t)

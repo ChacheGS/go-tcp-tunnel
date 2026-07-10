@@ -58,8 +58,10 @@ type Client struct {
 	logger         log.Logger
 
 	// onTunnelInfo, if set, is invoked with resolved tunnel-name -> full
-	// hostname pairs whenever the server pushes tunnel info. A later task
-	// wires this up; for now it exists only so tests can reference it.
+	// hostname pairs whenever the server pushes tunnel info. Exposed as a
+	// field (rather than only logging) so tests can observe it directly;
+	// production code leaves it nil and relies on the default log line
+	// inside handleTunnelInfo.
 	onTunnelInfo func(hosts map[string]string)
 }
 
@@ -252,9 +254,12 @@ func (c *Client) dial() (net.Conn, error) {
 
 func (c *Client) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodConnect {
-		if r.Header.Get(proto.HeaderError) != "" {
+		switch {
+		case r.Header.Get(proto.HeaderError) != "":
 			c.handleHandshakeError(w, r)
-		} else {
+		case r.Header.Get(proto.HeaderTunnelInfo) != "":
+			c.handleTunnelInfo(w, r)
+		default:
 			c.handleHandshake(w, r)
 		}
 		return
@@ -328,6 +333,34 @@ func (c *Client) handleHandshake(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
+}
+
+func (c *Client) handleTunnelInfo(w http.ResponseWriter, r *http.Request) {
+	var hosts map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&hosts); err != nil {
+		c.logger.Log(
+			"level", 1,
+			"msg", "failed to decode tunnel info",
+			"err", err,
+		)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	for name, host := range hosts {
+		c.logger.Log(
+			"level", 1,
+			"action", "tunnel ready",
+			"name", name,
+			"url", "https://"+host,
+		)
+	}
+
+	if c.onTunnelInfo != nil {
+		c.onTunnelInfo(hosts)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // Stop disconnects client from server.
