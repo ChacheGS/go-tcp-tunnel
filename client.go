@@ -56,6 +56,11 @@ type Client struct {
 	serverErr      error
 	lastDisconnect time.Time
 	logger         log.Logger
+
+	// onTunnelInfo, if set, is invoked with resolved tunnel-name -> full
+	// hostname pairs whenever the server pushes tunnel info. A later task
+	// wires this up; for now it exists only so tests can reference it.
+	onTunnelInfo func(hosts map[string]string)
 }
 
 // NewClient creates a new unconnected Client based on configuration. Caller

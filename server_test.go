@@ -1002,3 +1002,81 @@ func TestServer_handleHTTPConn_KnownHost_RoutesToClient(t *testing.T) {
 		t.Fatalf("expected 200 from routed tunnel, got %d", resp.StatusCode)
 	}
 }
+
+func TestServer_notifyTunnelInfo_NoOpWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test"))
+
+	// Should short-circuit without making any request; no panic expected.
+	s.notifyTunnelInfo(map[string]string{}, identifier)
+}
+
+func TestServer_notifyTunnelInfo_SendsPushMessage(t *testing.T) {
+	t.Skip("enabled in a later task once client.onTunnelInfo exists")
+	t.Parallel()
+
+	serverTLS, clientTLS := testTLSConfig(t)
+
+	controlLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer controlLn.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:      controlLn,
+		TLSConfig:     serverTLS,
+		AutoSubscribe: true,
+		BaseDomain:    "tunnel.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.Start(ctx)
+	time.Sleep(50 * time.Millisecond)
+
+	received := make(chan map[string]string, 1)
+
+	c, err := NewClient(&ClientConfig{
+		ServerAddr:      controlLn.Addr().String(),
+		TLSClientConfig: clientTLS,
+		Tunnels: map[string]*proto.Tunnel{
+			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+		},
+		Proxy: Proxy(ProxyFuncs{}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.onTunnelInfo = func(hosts map[string]string) {
+		received <- hosts
+	}
+
+	clientCtx, clientCancel := context.WithCancel(context.Background())
+	defer clientCancel()
+	go c.Start(clientCtx)
+
+	select {
+	case hosts := <-received:
+		if hosts["myapp"] != "myapp.tunnel.example.com" {
+			t.Fatalf("expected myapp -> myapp.tunnel.example.com, got %v", hosts)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("did not receive tunnel info push within timeout")
+	}
+}

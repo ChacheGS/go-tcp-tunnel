@@ -6,6 +6,7 @@
 package tunnel
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -349,6 +350,16 @@ func (s *Server) handleClient(conn net.Conn) {
 		goto reject
 	}
 
+	{
+		hosts := make(map[string]string)
+		for name, t := range tunnels {
+			if t.Protocol == proto.HTTP {
+				hosts[name] = t.Host + "." + s.config.BaseDomain
+			}
+		}
+		s.notifyTunnelInfo(hosts, identifier)
+	}
+
 	logger.Log(
 		"level", 1,
 		"action", "connected",
@@ -388,6 +399,45 @@ func (s *Server) notifyError(serverError error, identifier id.ID) {
 	}
 
 	req.Header.Set(proto.HeaderError, serverError.Error())
+
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
+	defer cancel()
+
+	if resp, err := s.httpClient.Do(req.WithContext(ctx)); err == nil {
+		resp.Body.Close()
+	}
+}
+
+// notifyTunnelInfo sends resolved public hostnames for a client's http
+// tunnels back down to the client, so it can display real, usable URLs to
+// the developer instead of just the local addr it's forwarding to.
+func (s *Server) notifyTunnelInfo(hosts map[string]string, identifier id.ID) {
+	if len(hosts) == 0 {
+		return
+	}
+
+	b, err := json.Marshal(hosts)
+	if err != nil {
+		s.logger.Log(
+			"level", 1,
+			"action", "tunnel info notification failed",
+			"identifier", identifier,
+			"err", err,
+		)
+		return
+	}
+
+	req, err := http.NewRequest(http.MethodConnect, s.connPool.URL(identifier), bytes.NewReader(b))
+	if err != nil {
+		s.logger.Log(
+			"level", 2,
+			"action", "tunnel info notification failed",
+			"identifier", identifier,
+			"err", err,
+		)
+		return
+	}
+	req.Header.Set(proto.HeaderTunnelInfo, "1")
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancel()
