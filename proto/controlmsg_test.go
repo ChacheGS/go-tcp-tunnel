@@ -93,3 +93,19 @@ func TestControlMessageWriteRead(t *testing.T) {
 		}
 	}
 }
+
+func TestHTTPProtocolConstant(t *testing.T) {
+	t.Parallel()
+
+	if HTTP != "http" {
+		t.Fatalf(`expected HTTP constant to equal "http", got %q`, HTTP)
+	}
+}
+
+func TestHeaderTunnelInfoConstant(t *testing.T) {
+	t.Parallel()
+
+	if HeaderTunnelInfo != "X-Tunnel-Info" {
+		t.Fatalf(`expected HeaderTunnelInfo to equal "X-Tunnel-Info", got %q`, HeaderTunnelInfo)
+	}
+}

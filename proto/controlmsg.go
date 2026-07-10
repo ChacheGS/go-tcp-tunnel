@@ -17,6 +17,11 @@ const (
 	HeaderAction         = "X-Action"
 	HeaderForwardedHost  = "X-Forwarded-Host"
 	HeaderForwardedProto = "X-Forwarded-Proto"
+
+	// HeaderTunnelInfo marks a server->client push of resolved public
+	// hostnames for that client's http tunnels, sent as a JSON object
+	// (tunnel name -> full hostname) in the request body.
+	HeaderTunnelInfo = "X-Tunnel-Info"
 )
 
 // Known actions.
@@ -29,6 +34,9 @@ const (
 	TCP  = "tcp"
 	TCP4 = "tcp4"
 	TCP6 = "tcp6"
+	// HTTP is a subdomain-routed tunnel. Unlike TCP tunnels, it does not
+	// get a dedicated public port; the server routes to it by Host header.
+	HTTP = "http"
 )
 
 // ControlMessage is sent from server to client before streaming data. It's
