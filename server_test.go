@@ -201,6 +201,15 @@ func TestServer_Addr_NilListener(t *testing.T) {
 	}
 }
 
+func TestServer_HTTPAddr_NilListener(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{}
+	if got := s.HTTPAddr(); got != "" {
+		t.Fatalf("expected empty string when http listener is not running, got %q", got)
+	}
+}
+
 func TestServer_Stop(t *testing.T) {
 	t.Parallel()
 

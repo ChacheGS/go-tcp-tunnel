@@ -41,3 +41,28 @@ func TestKeepAlive_Success(t *testing.T) {
 
 	<-done
 }
+
+func TestKeepAlive_ClosedConnection(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tcpConn, ok := conn.(*net.TCPConn)
+	if !ok {
+		t.Fatal("expected *net.TCPConn")
+	}
+	tcpConn.Close()
+
+	if err := keepAlive(tcpConn); err == nil {
+		t.Fatal("expected error from keepAlive on a closed connection")
+	}
+}

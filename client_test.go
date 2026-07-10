@@ -123,3 +123,23 @@ func TestClient_handleTunnelInfo_InvokesCallback(t *testing.T) {
 		t.Fatal("onTunnelInfo callback was not invoked")
 	}
 }
+
+func TestClient_handleTunnelInfo_DecodeError(t *testing.T) {
+	t.Parallel()
+
+	logger := log.NewStdLogger()
+	c := &Client{
+		config: &ClientConfig{Logger: logger},
+		logger: logger,
+	}
+
+	req := httptest.NewRequest(http.MethodConnect, "/", strings.NewReader("not valid json"))
+	req.Header.Set(proto.HeaderTunnelInfo, "1")
+	w := httptest.NewRecorder()
+
+	c.serveHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for malformed tunnel info body, got %d", w.Code)
+	}
+}
