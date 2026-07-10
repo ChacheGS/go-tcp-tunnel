@@ -713,3 +713,135 @@ func TestServer_HTTPAddr_StoredOnConfig(t *testing.T) {
 		t.Fatalf("expected http addr to be stored, got %q", s.config.HTTPAddr)
 	}
 }
+
+func TestServer_addTunnels_HTTP(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:   ln,
+		BaseDomain: "tunnel.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	tunnels := map[string]*proto.Tunnel{
+		"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+	}
+
+	if err := s.addTunnels(tunnels, identifier); err != nil {
+		t.Fatalf("addTunnels failed: %v", err)
+	}
+
+	got, ok := s.registry.Subscriber("myapp.tunnel.example.com")
+	if !ok {
+		t.Fatal("expected host to be registered")
+	}
+	if got != identifier {
+		t.Fatalf("expected identifier %v, got %v", identifier, got)
+	}
+
+	s.disconnected(identifier)
+}
+
+func TestServer_addTunnels_HTTP_MissingBaseDomain(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	tunnels := map[string]*proto.Tunnel{
+		"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+	}
+
+	err = s.addTunnels(tunnels, identifier)
+	if err == nil {
+		t.Fatal("expected error when server has no base domain configured")
+	}
+}
+
+func TestServer_addTunnels_HTTP_MissingHost(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:   ln,
+		BaseDomain: "tunnel.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	tunnels := map[string]*proto.Tunnel{
+		"myapp": {Protocol: proto.HTTP, Host: ""},
+	}
+
+	err = s.addTunnels(tunnels, identifier)
+	if err == nil {
+		t.Fatal("expected error for missing host")
+	}
+}
+
+func TestServer_addTunnels_HTTP_HostCollision(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:   ln,
+		BaseDomain: "tunnel.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first := id.New([]byte("first-client"))
+	s.Subscribe(first)
+	if err := s.addTunnels(map[string]*proto.Tunnel{
+		"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+	}, first); err != nil {
+		t.Fatalf("first addTunnels failed: %v", err)
+	}
+	defer s.disconnected(first)
+
+	second := id.New([]byte("second-client"))
+	s.Subscribe(second)
+	err = s.addTunnels(map[string]*proto.Tunnel{
+		"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+	}, second)
+	if err == nil {
+		t.Fatal("expected error for colliding subdomain")
+	}
+}

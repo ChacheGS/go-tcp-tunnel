@@ -404,6 +404,26 @@ func (s *Server) addTunnels(tunnels map[string]*proto.Tunnel, identifier id.ID) 
 			)
 
 			i.Listeners = append(i.Listeners, l)
+		case proto.HTTP:
+			if s.config.BaseDomain == "" {
+				err = fmt.Errorf("tunnel %s: server has no base domain configured for http tunnels", name)
+				goto rollback
+			}
+			if t.Host == "" {
+				err = fmt.Errorf("tunnel %s: missing host", name)
+				goto rollback
+			}
+
+			fullHost := t.Host + "." + s.config.BaseDomain
+
+			s.logger.Log(
+				"level", 2,
+				"action", "register host",
+				"identifier", identifier,
+				"host", fullHost,
+			)
+
+			i.Hosts = append(i.Hosts, fullHost)
 		default:
 			err = fmt.Errorf("unsupported protocol for tunnel %s: %s", name, t.Protocol)
 			goto rollback
