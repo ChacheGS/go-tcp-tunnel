@@ -17,7 +17,10 @@ type ProxyFunc func(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage)
 
 // ProxyFuncs is a collection of ProxyFunc.
 type ProxyFuncs struct {
-	// TCP is custom implementation of TCP proxing.
+	// TCP is the proxying implementation for tcp/tcp4/tcp6 tunnels, and
+	// also for http tunnels: both need nothing more than an opaque byte
+	// pipe to a local address, since routing to the right client already
+	// happened server-side by the time a connection reaches this func.
 	TCP ProxyFunc
 }
 

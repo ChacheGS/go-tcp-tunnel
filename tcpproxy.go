@@ -14,7 +14,11 @@ import (
 	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
 
-// TCPProxy forwards TCP streams.
+// TCPProxy forwards opaque byte streams by dialing a local address and
+// copying bytes in both directions. Despite the name, it also carries http
+// tunnels: an http tunnel needs nothing more than this same byte-pipe
+// behavior, since the server has already routed the connection to the right
+// client by the time it reaches here (see ControlMessage.ForwardedProto).
 type TCPProxy struct {
 	// localAddr specifies default TCP address of the local server.
 	localAddr string
