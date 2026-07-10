@@ -72,6 +72,48 @@ Configuration options:
     * `max_interval`: maximal time client would wait before redialing the server, *default:* `1m`
     * `max_time`: maximal time client would try to reconnect to the server if connection was lost, set `0` to never stop trying, *default:* `15m`
 
+### Subdomain-routed HTTP tunnels
+
+Instead of a dedicated public port, a tunnel can request a subdomain:
+
+```yaml
+server_addr: SERVER_IP:5223
+tunnels:
+  myapp:
+    proto: http
+    addr: localhost:8080
+    subdomain: myapp
+```
+
+This requires the server to be started with `-base-domain tunnel.example.com`
+(and `-http-addr`, default `127.0.0.1:9000`) and a reverse proxy in front of
+the server holding a wildcard TLS certificate for `*.tunnel.example.com`,
+forwarding all traffic for that vhost to the server's `-http-addr`. The
+tunnel then becomes reachable at `https://myapp.tunnel.example.com` — no
+infrastructure changes needed to add further tunnels, only `tunnels.yaml`.
+
+Example Caddyfile (ACME/DNS-01 provider config omitted, see Caddy's docs for
+your DNS provider):
+
+```
+*.tunnel.example.com {
+    tls {
+        dns <provider> ...
+    }
+    reverse_proxy 127.0.0.1:9000 {
+        transport http {
+            keepalive -1s
+        }
+    }
+}
+```
+
+The `keepalive -1s` disables backend connection reuse, which matters because
+the server routes each connection to a tunnel once, at accept time, based on
+its `Host` header — a connection reused across different subdomains would be
+routed incorrectly. WebSocket connections are unaffected either way, since
+Caddy takes an upgraded connection out of its reuse pool automatically.
+
 ## How it works
 
 A client opens TLS connection to a server. The server accepts connections from known clients only. The client is recognized by its TLS certificate ID. The server is publicly available and proxies incoming connections to the client. Then the connection is further proxied in the client's network.
