@@ -1,10 +1,14 @@
 package client
 
 import (
+	"bytes"
 	"flag"
+	"io"
+	"net"
 	"testing"
 	"time"
 
+	"github.com/jlandowner/go-tcp-tunnel/log"
 	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
 
@@ -147,7 +151,7 @@ func TestProxy(t *testing.T) {
 		"web": {Protocol: proto.TCP, Addr: "localhost:8080", RemoteAddr: "0.0.0.0:80"},
 	}
 
-	pf := proxy(m, nil)
+	pf := proxy(m, log.NewNopLogger())
 	if pf == nil {
 		t.Fatal("expected non-nil ProxyFunc")
 	}
@@ -174,15 +178,49 @@ func TestTunnels_HTTP(t *testing.T) {
 func TestProxy_HTTP_BuildsTargetMap(t *testing.T) {
 	t.Parallel()
 
+	// local echo server the proxy should dial when it sees ForwardedHost
+	// "myapp" — this is the actual behavior TestProxy_HTTP_BuildsTargetMap
+	// is named after, not just "does proxy() return non-nil".
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		buf := make([]byte, 1024)
+		n, _ := conn.Read(buf)
+		if n > 0 {
+			conn.Write(buf[:n])
+		}
+	}()
+
 	m := map[string]*Tunnel{
-		"myapp": {Protocol: proto.HTTP, Addr: "localhost:8080", Subdomain: "myapp"},
+		"myapp": {Protocol: proto.HTTP, Addr: ln.Addr().String(), Subdomain: "myapp"},
 	}
 
-	// proxy() returns a tunnel.ProxyFunc; we can't inspect its internal map
-	// directly, but we can confirm it doesn't panic when built and that it
-	// is non-nil, exercising the proto.HTTP branch in the switch.
-	pf := proxy(m, nil)
+	pf := proxy(m, log.NewNopLogger())
 	if pf == nil {
 		t.Fatal("expected non-nil ProxyFunc")
+	}
+
+	pr, pw := io.Pipe()
+	go func() {
+		pw.Write([]byte("ping"))
+		pw.Close()
+	}()
+
+	var out bytes.Buffer
+	pf(&out, pr, &proto.ControlMessage{
+		ForwardedHost:  "myapp",
+		ForwardedProto: proto.HTTP,
+	})
+
+	if out.String() != "ping" {
+		t.Fatalf("expected proxy to dial the tunnel's target addr and echo %q, got %q", "ping", out.String())
 	}
 }
