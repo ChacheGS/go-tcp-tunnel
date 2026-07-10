@@ -152,3 +152,37 @@ func TestProxy(t *testing.T) {
 		t.Fatal("expected non-nil ProxyFunc")
 	}
 }
+
+func TestTunnels_HTTP(t *testing.T) {
+	t.Parallel()
+
+	m := map[string]*Tunnel{
+		"myapp": {Protocol: proto.HTTP, Addr: "localhost:8080", Subdomain: "myapp"},
+	}
+
+	p := tunnels(m)
+
+	got := p["myapp"]
+	if got.Protocol != proto.HTTP {
+		t.Fatalf("expected protocol http, got %s", got.Protocol)
+	}
+	if got.Host != "myapp" {
+		t.Fatalf("expected host myapp, got %s", got.Host)
+	}
+}
+
+func TestProxy_HTTP_BuildsTargetMap(t *testing.T) {
+	t.Parallel()
+
+	m := map[string]*Tunnel{
+		"myapp": {Protocol: proto.HTTP, Addr: "localhost:8080", Subdomain: "myapp"},
+	}
+
+	// proxy() returns a tunnel.ProxyFunc; we can't inspect its internal map
+	// directly, but we can confirm it doesn't panic when built and that it
+	// is non-nil, exercising the proto.HTTP branch in the switch.
+	pf := proxy(m, nil)
+	if pf == nil {
+		t.Fatal("expected non-nil ProxyFunc")
+	}
+}
