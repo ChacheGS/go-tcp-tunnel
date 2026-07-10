@@ -46,6 +46,8 @@ type options struct {
 	tlsKey     string
 	clientCA   string
 	clientIDs  string
+	baseDomain string
+	httpAddr   string
 	logLevel   int
 }
 
@@ -64,6 +66,8 @@ func Command() *flag.FlagSet {
 	cmd.StringVar(&opts.tlsKey, "tls-key", "tls.key", "Path to a TLS key file")
 	cmd.StringVar(&opts.clientCA, "ca-crt", "ca.crt", "Path to the trusted certificate chain used for client certificate authentication")
 	cmd.StringVar(&opts.clientIDs, "client-ids", "", "Comma-separated list of tunnel client ids, if empty accept all clients with valid client certificate")
+	cmd.StringVar(&opts.baseDomain, "base-domain", "", "Base domain for subdomain-routed http tunnels, e.g. tunnel.example.com. Leave empty to disable http tunnels")
+	cmd.StringVar(&opts.httpAddr, "http-addr", "127.0.0.1:9000", "Internal address to listen on for subdomain-routed http tunnel traffic; point your reverse proxy here. Only used if -base-domain is set")
 	cmd.IntVar(&opts.logLevel, "log-level", 1, "Level of messages to log, 0-3")
 
 	return cmd
@@ -85,6 +89,8 @@ func Execute(ctx context.Context) error {
 		AutoSubscribe: autoSubscribe,
 		TLSConfig:     tlsconf,
 		Logger:        logger,
+		BaseDomain:    opts.baseDomain,
+		HTTPAddr:      opts.httpAddr,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create server: %s", err)
