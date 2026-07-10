@@ -265,6 +265,35 @@ tunnels:
 	}
 }
 
+func TestLoadClientConfigFromFile_DuplicateSubdomainRejected(t *testing.T) {
+	t.Parallel()
+
+	// Two differently-named tunnels sharing a subdomain would silently
+	// overwrite each other's target in the proxy's dial-target map with no
+	// error surfaced at connection time, so this must be rejected at load.
+	content := `
+server_addr: 192.168.1.1:5223
+tunnels:
+  web:
+    proto: http
+    addr: localhost:3000
+    subdomain: shared
+  api:
+    proto: http
+    addr: localhost:4000
+    subdomain: shared
+`
+	f := writeTempFile(t, content)
+
+	_, err := loadClientConfigFromFile(f)
+	if err == nil {
+		t.Fatal("expected error for duplicate subdomain across tunnels")
+	}
+	if !strings.Contains(err.Error(), "shared") {
+		t.Fatalf("expected error mentioning the colliding subdomain, got: %v", err)
+	}
+}
+
 func TestCompleteHTTP(t *testing.T) {
 	t.Parallel()
 

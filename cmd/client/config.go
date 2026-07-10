@@ -76,6 +76,7 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 		return nil, fmt.Errorf("server_addr: %s", err)
 	}
 
+	subdomains := make(map[string]string)
 	for name, t := range c.Tunnels {
 		switch t.Protocol {
 		case proto.TCP, proto.TCP4, proto.TCP6:
@@ -86,6 +87,13 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 			if err := completeHTTP(t); err != nil {
 				return nil, fmt.Errorf("%s %s", name, err)
 			}
+			// Two tunnels sharing a subdomain would silently overwrite
+			// each other's local target in the proxy's dial-target map,
+			// with no error surfaced at connection time.
+			if other, ok := subdomains[t.Subdomain]; ok {
+				return nil, fmt.Errorf("%s and %s: subdomain %q used by more than one tunnel", other, name, t.Subdomain)
+			}
+			subdomains[t.Subdomain] = name
 		default:
 			return nil, fmt.Errorf("%s invalid protocol %q", name, t.Protocol)
 		}
