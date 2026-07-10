@@ -129,6 +129,9 @@ func completeHTTP(t *Tunnel) error {
 	if t.Subdomain == "" {
 		return fmt.Errorf("subdomain: missing")
 	}
+	if !proto.ValidSubdomainLabel(t.Subdomain) {
+		return fmt.Errorf("subdomain: %q is not a valid DNS label (lowercase letters, digits, hyphens only, no leading/trailing hyphen)", t.Subdomain)
+	}
 	if t.RemoteAddr != "" {
 		return fmt.Errorf("remote_addr: not supported for proto http, use subdomain instead")
 	}

@@ -812,6 +812,40 @@ func TestServer_addTunnels_HTTP_MissingHost(t *testing.T) {
 	}
 }
 
+func TestServer_addTunnels_HTTP_InvalidHost(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:   ln,
+		BaseDomain: "tunnel.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	// A malicious or misconfigured client could send a Host containing a
+	// dot, attempting to register a nested/unintended subdomain, or other
+	// characters invalid in a DNS label; the server must reject these
+	// rather than trust wire data from any connected client.
+	tunnels := map[string]*proto.Tunnel{
+		"myapp": {Protocol: proto.HTTP, Host: "evil.attacker"},
+	}
+
+	err = s.addTunnels(tunnels, identifier)
+	if err == nil {
+		t.Fatal("expected error for invalid host")
+	}
+}
+
 func TestServer_addTunnels_HTTP_HostCollision(t *testing.T) {
 	t.Parallel()
 

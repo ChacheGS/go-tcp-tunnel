@@ -482,6 +482,10 @@ func (s *Server) addTunnels(tunnels map[string]*proto.Tunnel, identifier id.ID) 
 				err = fmt.Errorf("tunnel %s: missing host", name)
 				goto rollback
 			}
+			if !proto.ValidSubdomainLabel(t.Host) {
+				err = fmt.Errorf("tunnel %s: %q is not a valid DNS label", name, t.Host)
+				goto rollback
+			}
 
 			fullHost := t.Host + "." + s.config.BaseDomain
 

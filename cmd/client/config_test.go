@@ -296,6 +296,18 @@ func TestCompleteHTTP(t *testing.T) {
 			wantErr:     true,
 			errContains: "remote_addr: not supported",
 		},
+		{
+			name:        "subdomain with dot rejected",
+			tunnel:      Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "my.app"},
+			wantErr:     true,
+			errContains: "not a valid DNS label",
+		},
+		{
+			name:        "uppercase subdomain rejected",
+			tunnel:      Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "MyApp"},
+			wantErr:     true,
+			errContains: "not a valid DNS label",
+		},
 	}
 
 	for _, tt := range tests {
