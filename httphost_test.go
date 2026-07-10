@@ -7,6 +7,7 @@ package tunnel
 
 import (
 	"io"
+	"net"
 	"strings"
 	"testing"
 )
@@ -42,5 +43,31 @@ func TestPeekHostHeader_MalformedRequest(t *testing.T) {
 	_, _, err := peekHostHeader(r)
 	if err == nil {
 		t.Fatal("expected error for malformed request")
+	}
+}
+
+func TestReplayConn_ReadsReplayThenUnderlyingConn(t *testing.T) {
+	t.Parallel()
+
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	go func() {
+		client.Write([]byte("-world"))
+	}()
+
+	rc := &replayConn{
+		Conn: server,
+		r:    io.MultiReader(strings.NewReader("hello"), server),
+	}
+
+	buf := make([]byte, 11)
+	n, err := io.ReadFull(rc, buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(buf[:n]); got != "hello-world" {
+		t.Fatalf("expected %q, got %q", "hello-world", got)
 	}
 }

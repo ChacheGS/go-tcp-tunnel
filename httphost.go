@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"net"
 	"net/http"
 )
 
@@ -30,4 +31,17 @@ func peekHostHeader(r io.Reader) (host string, replay io.Reader, err error) {
 	}
 
 	return req.Host, io.MultiReader(&buf, r), nil
+}
+
+// replayConn wraps a net.Conn so that Read is served from r first (typically
+// the byte-exact replay produced by peekHostHeader) before falling back to
+// whatever r's tail reader provides. Write, Close, and the address/deadline
+// methods all delegate to the embedded net.Conn unchanged.
+type replayConn struct {
+	net.Conn
+	r io.Reader
+}
+
+func (c *replayConn) Read(p []byte) (int, error) {
+	return c.r.Read(p)
 }
