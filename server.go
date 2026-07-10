@@ -14,6 +14,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -55,10 +56,11 @@ type Server struct {
 	*registry
 	config *ServerConfig
 
-	listener   net.Listener
-	connPool   *connPool
-	httpClient *http.Client
-	logger     log.Logger
+	listener     net.Listener
+	httpListener net.Listener
+	connPool     *connPool
+	httpClient   *http.Client
+	logger       log.Logger
 }
 
 // NewServer creates a new Server.
@@ -143,6 +145,23 @@ func (s *Server) Start(ctx context.Context) error {
 		"action", "start",
 		"addr", addr,
 	)
+
+	if s.config.BaseDomain != "" && s.config.HTTPAddr != "" {
+		httpLn, err := net.Listen("tcp", s.config.HTTPAddr)
+		if err != nil {
+			return fmt.Errorf("failed to start http listener: %s", err)
+		}
+		s.httpListener = httpLn
+
+		s.logger.Log(
+			"level", 1,
+			"action", "start http listener",
+			"addr", httpLn.Addr().String(),
+			"base_domain", s.config.BaseDomain,
+		)
+
+		go s.listenHTTP(httpLn)
+	}
 
 	go func() {
 		<-ctx.Done()
@@ -520,6 +539,88 @@ func (s *Server) listen(l net.Listener, identifier id.ID) {
 	}
 }
 
+// listenHTTP accepts connections for subdomain-routed http tunnels, shared
+// across every connected client (unlike listen, which serves one client's
+// dedicated TCP listener).
+func (s *Server) listenHTTP(l net.Listener) {
+	addr := l.Addr().String()
+
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				s.logger.Log(
+					"level", 2,
+					"action", "http listener closed",
+					"addr", addr,
+				)
+				return
+			}
+
+			s.logger.Log(
+				"level", 0,
+				"msg", "accept of http connection failed",
+				"addr", addr,
+				"err", err,
+			)
+			continue
+		}
+
+		go s.handleHTTPConn(conn)
+	}
+}
+
+// handleHTTPConn reads the Host header off a freshly accepted connection,
+// finds which client registered that subdomain, and hands the connection to
+// proxyConn with the already-consumed bytes replayed first so the client
+// receives the exact original request.
+func (s *Server) handleHTTPConn(conn net.Conn) {
+	host, replay, err := peekHostHeader(conn)
+	if err != nil {
+		s.logger.Log(
+			"level", 1,
+			"msg", "failed to read request host",
+			"err", err,
+		)
+		conn.Close()
+		return
+	}
+
+	fullHost := trimPort(host)
+
+	identifier, ok := s.registry.Subscriber(fullHost)
+	if !ok {
+		s.logger.Log(
+			"level", 1,
+			"msg", "no tunnel registered for host",
+			"host", fullHost,
+		)
+		io.WriteString(conn, "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+		conn.Close()
+		return
+	}
+
+	slug := strings.TrimSuffix(fullHost, "."+s.config.BaseDomain)
+
+	msg := &proto.ControlMessage{
+		Action:         proto.ActionProxy,
+		ForwardedHost:  slug,
+		ForwardedProto: proto.HTTP,
+	}
+
+	rc := &replayConn{Conn: conn, r: replay}
+
+	if err := s.proxyConn(identifier, rc, msg); err != nil {
+		s.logger.Log(
+			"level", 0,
+			"msg", "http proxy error",
+			"identifier", identifier,
+			"ctrlMsg", msg,
+			"err", err,
+		)
+	}
+}
+
 func (s *Server) proxyConn(identifier id.ID, conn net.Conn, msg *proto.ControlMessage) error {
 	s.logger.Log(
 		"level", 2,
@@ -611,5 +712,8 @@ func (s *Server) Stop() {
 
 	if s.listener != nil {
 		s.listener.Close()
+	}
+	if s.httpListener != nil {
+		s.httpListener.Close()
 	}
 }

@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"bufio"
 	"context"
 	"crypto/ecdsa"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
@@ -843,5 +845,160 @@ func TestServer_addTunnels_HTTP_HostCollision(t *testing.T) {
 	}, second)
 	if err == nil {
 		t.Fatal("expected error for colliding subdomain")
+	}
+}
+
+func TestServer_handleHTTPConn_UnknownHost(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:   ln,
+		BaseDomain: "tunnel.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server, client := net.Pipe()
+	defer client.Close()
+
+	done := make(chan struct{})
+	go func() {
+		s.handleHTTPConn(server)
+		close(done)
+	}()
+
+	client.SetReadDeadline(time.Now().Add(3 * time.Second))
+	req, err := http.NewRequest(http.MethodGet, "http://nosuchapp.tunnel.example.com/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := req.Write(client); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(client), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 for unknown host, got %d", resp.StatusCode)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("handleHTTPConn did not return")
+	}
+}
+
+func TestServer_handleHTTPConn_KnownHost_RoutesToClient(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := testTLSConfig(t)
+
+	controlLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer controlLn.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:      controlLn,
+		TLSConfig:     serverTLS,
+		AutoSubscribe: true,
+		BaseDomain:    "tunnel.example.com",
+		HTTPAddr:      "127.0.0.1:0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.Start(ctx)
+	time.Sleep(50 * time.Millisecond)
+
+	// local echo server the tunnel client will forward to
+	echoLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer echoLn.Close()
+	go func() {
+		conn, err := echoLn.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		buf := make([]byte, 4096)
+		n, _ := conn.Read(buf)
+		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"))
+		_ = n
+	}()
+
+	tcpProxy := NewMultiTCPProxy(map[string]string{
+		"myapp": echoLn.Addr().String(),
+	}, nil)
+
+	c, err := NewClient(&ClientConfig{
+		ServerAddr:      controlLn.Addr().String(),
+		TLSClientConfig: clientTLS,
+		Tunnels: map[string]*proto.Tunnel{
+			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+		},
+		Proxy: Proxy(ProxyFuncs{TCP: tcpProxy.Proxy}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientCtx, clientCancel := context.WithCancel(context.Background())
+	defer clientCancel()
+	go c.Start(clientCtx)
+
+	deadline := time.After(5 * time.Second)
+	for !c.Connected() {
+		select {
+		case <-deadline:
+			t.Fatal("client did not connect within timeout")
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	// Dial the server's internal HTTP router directly (simulating the
+	// reverse proxy) and request the registered subdomain.
+	conn, err := net.Dial("tcp", s.httpListener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	req, err := http.NewRequest(http.MethodGet, "http://myapp.tunnel.example.com/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := req.Write(conn); err != nil {
+		t.Fatal(err)
+	}
+
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 from routed tunnel, got %d", resp.StatusCode)
 	}
 }
