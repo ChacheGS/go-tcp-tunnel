@@ -284,6 +284,22 @@ func TestServer_disconnected_WithListeners(t *testing.T) {
 	}
 }
 
+// waitConnected polls c.Connected() until it's true or timeout elapses,
+// failing the test in the latter case.
+func waitConnected(t *testing.T, c *Client, timeout time.Duration) {
+	t.Helper()
+
+	deadline := time.After(timeout)
+	for !c.Connected() {
+		select {
+		case <-deadline:
+			t.Fatal("client did not connect within timeout")
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+}
+
 func TestServer_addTunnels_TCP(t *testing.T) {
 	t.Parallel()
 
@@ -1075,15 +1091,7 @@ func TestServer_handleHTTPConn_KnownHost_RoutesToClient(t *testing.T) {
 	defer clientCancel()
 	go c.Start(clientCtx)
 
-	deadline := time.After(5 * time.Second)
-	for !c.Connected() {
-		select {
-		case <-deadline:
-			t.Fatal("client did not connect within timeout")
-		default:
-			time.Sleep(50 * time.Millisecond)
-		}
-	}
+	waitConnected(t, c, 5*time.Second)
 
 	// Dial the server's internal HTTP router directly (simulating the
 	// reverse proxy) and request the registered subdomain.
@@ -1177,15 +1185,7 @@ func TestServer_handleHTTPConn_HostHeaderIsCaseInsensitive(t *testing.T) {
 	defer clientCancel()
 	go c.Start(clientCtx)
 
-	deadline := time.After(5 * time.Second)
-	for !c.Connected() {
-		select {
-		case <-deadline:
-			t.Fatal("client did not connect within timeout")
-		default:
-			time.Sleep(50 * time.Millisecond)
-		}
-	}
+	waitConnected(t, c, 5*time.Second)
 
 	conn, err := net.Dial("tcp", s.httpListener.Addr().String())
 	if err != nil {

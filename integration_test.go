@@ -108,6 +108,22 @@ func makeTunnelClient(t testing.TB, serverAddr string, tcpLocalAddr, tcpAddr net
 	return c
 }
 
+// waitConnected polls c.Connected() until it's true or timeout elapses,
+// failing the test in the latter case.
+func waitConnected(t *testing.T, c *tunnel.Client, timeout time.Duration) {
+	t.Helper()
+
+	deadline := time.After(timeout)
+	for !c.Connected() {
+		select {
+		case <-deadline:
+			t.Fatal("client did not connect within timeout")
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+}
+
 func TestIntegration(t *testing.T) {
 	// local services
 	tcp := makeEcho(t)
@@ -292,15 +308,7 @@ func TestIntegration_HTTPSubdomainTunnel(t *testing.T) {
 	defer cancel()
 	go c.Start(ctx)
 
-	deadline := time.After(5 * time.Second)
-	for !c.Connected() {
-		select {
-		case <-deadline:
-			t.Fatal("client did not connect within timeout")
-		default:
-			time.Sleep(50 * time.Millisecond)
-		}
-	}
+	waitConnected(t, c, 5*time.Second)
 
 	req, err := http.NewRequest(http.MethodGet, "http://myapp.tunnel.example.com/", nil)
 	if err != nil {
@@ -389,15 +397,7 @@ func TestIntegration_HTTPSubdomainTunnel_WebSocket(t *testing.T) {
 	defer cancel()
 	go c.Start(ctx)
 
-	deadline := time.After(5 * time.Second)
-	for !c.Connected() {
-		select {
-		case <-deadline:
-			t.Fatal("client did not connect within timeout")
-		default:
-			time.Sleep(50 * time.Millisecond)
-		}
-	}
+	waitConnected(t, c, 5*time.Second)
 
 	conn, err := net.Dial("tcp", s.HTTPAddr())
 	if err != nil {
