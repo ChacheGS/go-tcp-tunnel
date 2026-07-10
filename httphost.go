@@ -11,7 +11,24 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 )
+
+// httpFullHost composes the full public hostname for an http tunnel's
+// subdomain slug and a server's base domain. This is the single place that
+// defines the composition rule; httpSlugFromHost is its exact inverse.
+func httpFullHost(baseDomain, slug string) string {
+	return slug + "." + baseDomain
+}
+
+// httpSlugFromHost recovers the subdomain slug from a full hostname produced
+// by httpFullHost. It assumes fullHost was in fact composed by httpFullHost
+// for the same baseDomain, which holds for every host the registry can ever
+// return from a lookup, since addTunnels is the only writer of registered
+// hosts and always uses httpFullHost.
+func httpSlugFromHost(baseDomain, fullHost string) string {
+	return strings.TrimSuffix(fullHost, "."+baseDomain)
+}
 
 // peekHostHeader reads an HTTP request's start-line and headers from r,
 // returning the Host header value and a reader that reproduces the exact

@@ -359,7 +359,7 @@ func (s *Server) handleClient(conn net.Conn) {
 		hosts := make(map[string]string)
 		for name, t := range tunnels {
 			if t.Protocol == proto.HTTP {
-				hosts[name] = t.Host + "." + s.config.BaseDomain
+				hosts[name] = httpFullHost(s.config.BaseDomain, t.Host)
 			}
 		}
 		s.notifyTunnelInfo(hosts, identifier)
@@ -392,18 +392,29 @@ func (s *Server) notifyError(serverError error, identifier id.ID) {
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodConnect, s.connPool.URL(identifier), nil)
+	s.pushToClient(identifier, nil, "client error notification failed", func(h http.Header) {
+		h.Set(proto.HeaderError, serverError.Error())
+	})
+}
+
+// pushToClient sends a best-effort CONNECT-method request to the client's
+// control channel, the shared transport used for every one-way
+// server->client notification (handshake errors, resolved tunnel info)
+// alongside the initial handshake response itself. Errors building or
+// sending the request are logged under logAction and swallowed; callers have
+// no synchronous way to know whether the client received the push.
+func (s *Server) pushToClient(identifier id.ID, body io.Reader, logAction string, setHeader func(http.Header)) {
+	req, err := http.NewRequest(http.MethodConnect, s.connPool.URL(identifier), body)
 	if err != nil {
 		s.logger.Log(
 			"level", 2,
-			"action", "client error notification failed",
+			"action", logAction,
 			"identifier", identifier,
 			"err", err,
 		)
 		return
 	}
-
-	req.Header.Set(proto.HeaderError, serverError.Error())
+	setHeader(req.Header)
 
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
 	defer cancel()
@@ -432,24 +443,9 @@ func (s *Server) notifyTunnelInfo(hosts map[string]string, identifier id.ID) {
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodConnect, s.connPool.URL(identifier), bytes.NewReader(b))
-	if err != nil {
-		s.logger.Log(
-			"level", 2,
-			"action", "tunnel info notification failed",
-			"identifier", identifier,
-			"err", err,
-		)
-		return
-	}
-	req.Header.Set(proto.HeaderTunnelInfo, "1")
-
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultTimeout)
-	defer cancel()
-
-	if resp, err := s.httpClient.Do(req.WithContext(ctx)); err == nil {
-		resp.Body.Close()
-	}
+	s.pushToClient(identifier, bytes.NewReader(b), "tunnel info notification failed", func(h http.Header) {
+		h.Set(proto.HeaderTunnelInfo, "1")
+	})
 }
 
 // addTunnels invokes addHost or addListener based on data from proto.Tunnel. If
@@ -492,7 +488,7 @@ func (s *Server) addTunnels(tunnels map[string]*proto.Tunnel, identifier id.ID) 
 				goto rollback
 			}
 
-			fullHost := t.Host + "." + s.config.BaseDomain
+			fullHost := httpFullHost(s.config.BaseDomain, t.Host)
 
 			s.logger.Log(
 				"level", 2,
@@ -693,7 +689,7 @@ func (s *Server) handleHTTPConn(conn net.Conn) {
 		return
 	}
 
-	slug := strings.TrimSuffix(fullHost, "."+s.config.BaseDomain)
+	slug := httpSlugFromHost(s.config.BaseDomain, fullHost)
 
 	msg := &proto.ControlMessage{
 		Action:         proto.ActionProxy,
