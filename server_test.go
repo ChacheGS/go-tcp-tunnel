@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -542,6 +543,42 @@ func TestServer_Start_ContextCancel(t *testing.T) {
 	}
 }
 
+func TestServer_Start_HTTPListenerBindFailureClosesControlListener(t *testing.T) {
+	t.Parallel()
+
+	// Occupy an address so the internal http listener fails to bind.
+	occupied, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer occupied.Close()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := NewServer(&ServerConfig{
+		Listener:   ln,
+		BaseDomain: "tunnel.example.com",
+		HTTPAddr:   occupied.Addr().String(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Start(context.Background()); err == nil {
+		t.Fatal("expected Start to fail when the http listener can't bind")
+	}
+
+	// The control listener (already open before Start was called) must be
+	// closed on this early-return path, or its file descriptor leaks since
+	// nothing else will ever close it.
+	if _, err := ln.Accept(); !errors.Is(err, net.ErrClosed) {
+		t.Fatalf("expected control listener to be closed after Start failure, got err: %v", err)
+	}
+}
+
 func TestServer_listen_ClosedListener(t *testing.T) {
 	t.Parallel()
 
@@ -1073,6 +1110,108 @@ func TestServer_handleHTTPConn_KnownHost_RoutesToClient(t *testing.T) {
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 from routed tunnel, got %d", resp.StatusCode)
+	}
+}
+
+func TestServer_handleHTTPConn_HostHeaderIsCaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := testTLSConfig(t)
+
+	controlLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer controlLn.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:      controlLn,
+		TLSConfig:     serverTLS,
+		AutoSubscribe: true,
+		BaseDomain:    "tunnel.example.com",
+		HTTPAddr:      "127.0.0.1:0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.Start(ctx)
+	time.Sleep(50 * time.Millisecond)
+
+	echoLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer echoLn.Close()
+	go func() {
+		conn, err := echoLn.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		buf := make([]byte, 4096)
+		n, _ := conn.Read(buf)
+		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"))
+		_ = n
+	}()
+
+	tcpProxy := NewMultiTCPProxy(map[string]string{
+		"myapp": echoLn.Addr().String(),
+	}, nil)
+
+	c, err := NewClient(&ClientConfig{
+		ServerAddr:      controlLn.Addr().String(),
+		TLSClientConfig: clientTLS,
+		Tunnels: map[string]*proto.Tunnel{
+			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
+		},
+		Proxy: Proxy(ProxyFuncs{TCP: tcpProxy.Proxy}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientCtx, clientCancel := context.WithCancel(context.Background())
+	defer clientCancel()
+	go c.Start(clientCtx)
+
+	deadline := time.After(5 * time.Second)
+	for !c.Connected() {
+		select {
+		case <-deadline:
+			t.Fatal("client did not connect within timeout")
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	conn, err := net.Dial("tcp", s.httpListener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	// Mixed-case Host header, legal per RFC 9110 host-matching rules, must
+	// still route to the tunnel registered under its lowercase form.
+	req, err := http.NewRequest(http.MethodGet, "http://MyApp.Tunnel.Example.Com/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := req.Write(conn); err != nil {
+		t.Fatal(err)
+	}
+
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for case-varied host of a registered tunnel, got %d", resp.StatusCode)
 	}
 }
 

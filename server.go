@@ -150,6 +150,11 @@ func (s *Server) Start(ctx context.Context) error {
 	if s.config.BaseDomain != "" && s.config.HTTPAddr != "" {
 		httpLn, err := net.Listen("tcp", s.config.HTTPAddr)
 		if err != nil {
+			// s.listener is already open at this point (bound in NewServer,
+			// before Start is ever called); it must be closed here or its
+			// file descriptor leaks, since nothing else will close it if we
+			// return before the ctx-cancellation/Stop() goroutine is spawned.
+			s.listener.Close()
 			return fmt.Errorf("failed to start http listener: %s", err)
 		}
 		s.httpListener = httpLn
@@ -620,6 +625,17 @@ func (s *Server) listenHTTP(l net.Listener) {
 			continue
 		}
 
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			if err := keepAlive(tcpConn); err != nil {
+				s.logger.Log(
+					"level", 1,
+					"msg", "TCP keepalive for tunneled http connection failed",
+					"addr", addr,
+					"err", err,
+				)
+			}
+		}
+
 		go s.handleHTTPConn(conn)
 	}
 }
@@ -660,7 +676,10 @@ func (s *Server) handleHTTPConn(conn net.Conn) {
 		return
 	}
 
-	fullHost := trimPort(host)
+	// Host headers are case-insensitive (RFC 9110 §4.2.3), but registered
+	// subdomains are always lowercase (proto.ValidSubdomainLabel rejects
+	// uppercase), so the incoming value must be folded to match.
+	fullHost := strings.ToLower(trimPort(host))
 
 	identifier, ok := s.registry.Subscriber(fullHost)
 	if !ok {
