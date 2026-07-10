@@ -238,6 +238,87 @@ func TestCompleteTCP(t *testing.T) {
 	}
 }
 
+func TestLoadClientConfigFromFile_HTTPTunnel(t *testing.T) {
+	t.Parallel()
+
+	content := `
+server_addr: 192.168.1.1:5223
+tunnels:
+  myapp:
+    proto: http
+    addr: localhost:8080
+    subdomain: myapp
+`
+	f := writeTempFile(t, content)
+
+	c, err := loadClientConfigFromFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	myapp := c.Tunnels["myapp"]
+	if myapp.Addr != "localhost:8080" {
+		t.Fatalf("expected addr localhost:8080, got %s", myapp.Addr)
+	}
+	if myapp.Subdomain != "myapp" {
+		t.Fatalf("expected subdomain myapp, got %s", myapp.Subdomain)
+	}
+}
+
+func TestCompleteHTTP(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		tunnel      Tunnel
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:   "valid",
+			tunnel: Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "myapp"},
+		},
+		{
+			name:        "missing addr",
+			tunnel:      Tunnel{Protocol: "http", Subdomain: "myapp"},
+			wantErr:     true,
+			errContains: "addr: missing",
+		},
+		{
+			name:        "missing subdomain",
+			tunnel:      Tunnel{Protocol: "http", Addr: "localhost:8080"},
+			wantErr:     true,
+			errContains: "subdomain: missing",
+		},
+		{
+			name:        "remote_addr not allowed",
+			tunnel:      Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "myapp", RemoteAddr: "0.0.0.0:80"},
+			wantErr:     true,
+			errContains: "remote_addr: not supported",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tun := tt.tunnel
+			err := completeHTTP(&tun)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Fatalf("expected error containing %q, got: %v", tt.errContains, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func writeTempFile(t *testing.T, content string) string {
 	t.Helper()
 

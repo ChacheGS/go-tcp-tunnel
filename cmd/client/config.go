@@ -38,6 +38,9 @@ type Tunnel struct {
 	Protocol   string `yaml:"proto,omitempty"`
 	Addr       string `yaml:"addr,omitempty"`
 	RemoteAddr string `yaml:"remote_addr,omitempty"`
+	// Subdomain is used by proto "http" tunnels: the tunnel becomes
+	// reachable at <Subdomain>.<server's base domain>.
+	Subdomain string `yaml:"subdomain,omitempty"`
 }
 
 // ClientConfig is a tunnel client configuration.
@@ -79,6 +82,10 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 			if err := completeTCP(t); err != nil {
 				return nil, fmt.Errorf("%s %s", name, err)
 			}
+		case proto.HTTP:
+			if err := completeHTTP(t); err != nil {
+				return nil, fmt.Errorf("%s %s", name, err)
+			}
 		default:
 			return nil, fmt.Errorf("%s invalid protocol %q", name, t.Protocol)
 		}
@@ -105,6 +112,25 @@ func completeTCP(t *Tunnel) error {
 	}
 	if t.RemoteAddr, err = tunnel.NormalizeAddress(t.RemoteAddr); err != nil {
 		return fmt.Errorf("remote_addr: %s", err)
+	}
+
+	return nil
+}
+
+func completeHTTP(t *Tunnel) error {
+	var err error
+	if t.Addr == "" {
+		return fmt.Errorf("addr: missing")
+	}
+	if t.Addr, err = tunnel.NormalizeAddress(t.Addr); err != nil {
+		return fmt.Errorf("addr: %s", err)
+	}
+
+	if t.Subdomain == "" {
+		return fmt.Errorf("subdomain: missing")
+	}
+	if t.RemoteAddr != "" {
+		return fmt.Errorf("remote_addr: not supported for proto http, use subdomain instead")
 	}
 
 	return nil
