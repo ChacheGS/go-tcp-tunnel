@@ -11,7 +11,7 @@ setup:
 
 .PHONY: build
 build:
-	CGO_ENABLED=0 go build -o bin/$(NAME) cmd/main.go
+	CGO_ENABLED=0 go build -o bin/$(NAME) ./cmd/$(NAME)
 
 .PHONY: test
 test:
@@ -38,7 +38,7 @@ ifeq ($(shell expr $(VERSION) : '^v[0-9]\+\.[0-9]\+\.[0-9]\+$$'),0)
 	@exit 9
 endif
 endif
-	sed -i.bk -e 's/const version string = "v[0-9]\+.[0-9]\+.[0-9]\+.*"/const version string = "$(VERSION)"/' ./cmd/main.go
+	sed -i.bk -e 's/const version string = "v[0-9]\+.[0-9]\+.[0-9]\+.*"/const version string = "$(VERSION)"/' ./cmd/$(NAME)/main.go
 	sed -i.bk \
 		-e "s/version: [0-9]\+.[0-9]\+.[0-9]\+.*/version: ${CHART_VERSION:v%=%}/" \
 		-e "s/appVersion: v[0-9]\+.[0-9]\+.[0-9]\+.*/appVersion: ${VERSION}/" \

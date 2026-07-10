@@ -3,7 +3,7 @@ before:
   - go mod download
 builds:
 - id: go-tcp-tunnel
-  main: ./cmd/main.go
+  main: ./cmd/go-tcp-tunnel
   binary: go-tcp-tunnel
   env:
   - CGO_ENABLED=0
