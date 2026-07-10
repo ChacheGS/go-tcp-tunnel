@@ -625,11 +625,31 @@ func (s *Server) listenHTTP(l net.Listener) {
 // proxyConn with the already-consumed bytes replayed first so the client
 // receives the exact original request.
 func (s *Server) handleHTTPConn(conn net.Conn) {
+	if err := conn.SetReadDeadline(time.Now().Add(DefaultTimeout)); err != nil {
+		s.logger.Log(
+			"level", 1,
+			"msg", "failed to set read deadline for host sniffing",
+			"err", err,
+		)
+		conn.Close()
+		return
+	}
+
 	host, replay, err := peekHostHeader(conn)
 	if err != nil {
 		s.logger.Log(
 			"level", 1,
 			"msg", "failed to read request host",
+			"err", err,
+		)
+		conn.Close()
+		return
+	}
+
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		s.logger.Log(
+			"level", 1,
+			"msg", "failed to clear read deadline after host sniffing",
 			"err", err,
 		)
 		conn.Close()

@@ -848,6 +848,45 @@ func TestServer_addTunnels_HTTP_HostCollision(t *testing.T) {
 	}
 }
 
+func TestServer_handleHTTPConn_StalledConnectionTimesOut(t *testing.T) {
+	// Not t.Parallel(): this test temporarily overrides the package-level
+	// DefaultTimeout var, which must not race with other tests reading it.
+
+	original := DefaultTimeout
+	DefaultTimeout = 100 * time.Millisecond
+	defer func() { DefaultTimeout = original }()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:   ln,
+		BaseDomain: "tunnel.example.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server, client := net.Pipe()
+	defer client.Close()
+
+	done := make(chan struct{})
+	go func() {
+		s.handleHTTPConn(server)
+		close(done)
+	}()
+
+	// Client deliberately never sends anything.
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("handleHTTPConn did not return for a stalled connection; read deadline was not enforced")
+	}
+}
+
 func TestServer_handleHTTPConn_UnknownHost(t *testing.T) {
 	t.Parallel()
 
