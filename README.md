@@ -126,4 +126,6 @@ Copyright (C) 2017 Michał Matczuk
 
 Copyright (C) 2022 jlandowner
 
+Copyright (C) 2026 ChacheGS
+
 This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/ChacheGS/go-tcp-tunnel/blob/master/LICENSE) file for details. If you need an enterprice license contact me directly.

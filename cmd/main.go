@@ -1,5 +1,6 @@
 // Copyright (C) 2017 Michał Matczuk
 // Copyright (C) 2022 jlandowner
+// Copyright (C) 2026 ChacheGS
 // Use of this source code is governed by an AGPL-style
 // license that can be found in the LICENSE file.
 
@@ -36,9 +37,12 @@ Commands:
 	go-tcp-tunnel client --help
 
 Author:
-	jlandowner(https://github.com/jlandowner)
+	ChacheGS(https://github.com/ChacheGS)
 
-	This project is forked from go-http-tunnel(https://github.com/mmatczuk/go-http-tunnel)
+	This project is forked from go-tcp-tunnel(https://github.com/jlandowner/go-tcp-tunnel)
+	written by jlandowner(https://github.com/jlandowner)
+
+	go-tcp-tunnel itself is forked from go-http-tunnel(https://github.com/mmatczuk/go-http-tunnel)
 	written by M. Matczuk (mmatczuk@gmail.com)
 
 Bugs:
