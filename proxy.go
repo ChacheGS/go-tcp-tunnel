@@ -26,7 +26,7 @@ func Proxy(p ProxyFuncs) ProxyFunc {
 	return func(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
 		var f ProxyFunc
 		switch msg.ForwardedProto {
-		case proto.TCP, proto.TCP4, proto.TCP6:
+		case proto.TCP, proto.TCP4, proto.TCP6, proto.HTTP:
 			f = p.TCP
 		}
 

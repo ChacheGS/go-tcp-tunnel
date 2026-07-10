@@ -261,3 +261,68 @@ func TestTCPProxy_Proxy_UnsupportedProtocol(t *testing.T) {
 	// Should return without panic (unsupported protocol logged)
 	p.Proxy(nil, nil, msg)
 }
+
+func TestTCPProxy_Proxy_HTTPProtocolAccepted(t *testing.T) {
+	t.Parallel()
+
+	// local echo server
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		buf := make([]byte, 1024)
+		n, _ := conn.Read(buf)
+		if n > 0 {
+			conn.Write(buf[:n])
+		}
+	}()
+
+	p := NewMultiTCPProxy(map[string]string{
+		"myapp": ln.Addr().String(),
+	}, nil)
+
+	pr, pw := io.Pipe()
+	wPr, wPw := io.Pipe()
+
+	testData := []byte("ping")
+
+	msg := &proto.ControlMessage{
+		ForwardedHost:  "myapp",
+		ForwardedProto: proto.HTTP,
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		p.Proxy(wPw, pr, msg)
+		wPw.Close()
+	}()
+
+	// Send data from "user" and close
+	pw.Write(testData)
+	pw.Close()
+
+	// Read echoed data from "tunnel→user"
+	buf := make([]byte, 1024)
+	n, _ := wPr.Read(buf)
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Proxy did not return")
+	}
+
+	if n == 0 {
+		t.Fatal("expected echoed data from proxy")
+	}
+	if string(buf[:n]) != string(testData) {
+		t.Fatalf("expected %q, got %q", testData, buf[:n])
+	}
+}

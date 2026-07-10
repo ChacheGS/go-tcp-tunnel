@@ -58,7 +58,7 @@ func NewMultiTCPProxy(localAddrMap map[string]string, logger log.Logger) *TCPPro
 // Proxy is a ProxyFunc.
 func (p *TCPProxy) Proxy(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
 	switch msg.ForwardedProto {
-	case proto.TCP, proto.TCP4, proto.TCP6:
+	case proto.TCP, proto.TCP4, proto.TCP6, proto.HTTP:
 		// ok
 	default:
 		p.logger.Log(
