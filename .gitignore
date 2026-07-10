@@ -6,6 +6,7 @@ build/
 *.cov
 *.prof
 *.mprof
+coverage.out
 
 ### IntelliJ
 .idea/

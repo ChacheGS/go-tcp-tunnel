@@ -94,8 +94,10 @@ func makeTunnelClient(t testing.TB, serverAddr string, tcpLocalAddr, tcpAddr net
 	if err != nil {
 		t.Fatal(err)
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 	go func() {
-		if err := c.Start(context.Background()); err != nil {
+		if err := c.Start(ctx); err != nil {
 			t.Log(err)
 		}
 	}()

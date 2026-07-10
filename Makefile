@@ -17,6 +17,11 @@ build:
 test:
 	go test ./...
 
+.PHONY: coverage
+coverage:
+	go test -coverprofile=coverage.out -coverpkg=./... ./...
+	go tool cover -func=coverage.out
+
 .PHONY: docker-image
 docker-image:
 	DOCKER_BUILDKIT=1 docker build . -t $(REPO_PREFIX)$(NAME):$(VERSION)

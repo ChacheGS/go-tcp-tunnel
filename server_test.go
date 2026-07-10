@@ -1,0 +1,690 @@
+package tunnel
+
+import (
+	"context"
+	"crypto/ecdsa"
+	"fmt"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"net"
+	"testing"
+	"time"
+
+	"github.com/jlandowner/go-tcp-tunnel/id"
+	"github.com/jlandowner/go-tcp-tunnel/proto"
+)
+
+// testTLSConfig creates a CA + server + client cert setup for mTLS testing.
+func testTLSConfig(t *testing.T) (serverTLS *tls.Config, clientTLS *tls.Config) {
+	t.Helper()
+
+	// Generate CA
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Test CA"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+	}
+	caCertDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caCert, err := x509.ParseCertificate(caCertDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCertDER})
+	caKeyDER, err := x509.MarshalECPrivateKey(caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: caKeyDER})
+
+	// Generate server cert
+	serverKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	serverTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "localhost"},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"localhost"},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	serverCertDER, _ := x509.CreateCertificate(rand.Reader, serverTemplate, caCert, &serverKey.PublicKey, caKey)
+	serverKeyDER, _ := x509.MarshalECPrivateKey(serverKey)
+	serverCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverCertDER})
+	serverKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: serverKeyDER})
+	serverTLSCert, _ := tls.X509KeyPair(serverCertPEM, serverKeyPEM)
+
+	// Generate client cert
+	clientKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	clientTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(3),
+		Subject:      pkix.Name{CommonName: "client"},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	clientCertDER, _ := x509.CreateCertificate(rand.Reader, clientTemplate, caCert, &clientKey.PublicKey, caKey)
+	clientKeyDER, _ := x509.MarshalECPrivateKey(clientKey)
+	clientCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: clientCertDER})
+	clientKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: clientKeyDER})
+	clientTLSCert, _ := tls.X509KeyPair(clientCertPEM, clientKeyPEM)
+
+	caPool := x509.NewCertPool()
+	caPool.AppendCertsFromPEM(caCertPEM)
+
+	_ = caKeyPEM // used for CA cert generation
+
+	serverTLS = &tls.Config{
+		Certificates: []tls.Certificate{serverTLSCert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    caPool,
+	}
+
+	clientTLS = &tls.Config{
+		Certificates: []tls.Certificate{clientTLSCert},
+		RootCAs:      caPool,
+		ServerName:   "localhost",
+	}
+
+	return serverTLS, clientTLS
+}
+
+func TestNewServer_WithListener(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener: ln,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s == nil {
+		t.Fatal("expected non-nil server")
+	}
+}
+
+func TestNewServer_MissingAddr(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewServer(&ServerConfig{})
+	if err == nil {
+		t.Fatal("expected error for missing addr")
+	}
+}
+
+func TestNewServer_MissingTLSConfig(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewServer(&ServerConfig{
+		Addr: "127.0.0.1:0",
+	})
+	if err == nil {
+		t.Fatal("expected error for missing TLS config")
+	}
+}
+
+func TestNewServer_NilLogger(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener: ln,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.logger == nil {
+		t.Fatal("expected non-nil default logger")
+	}
+}
+
+func TestServer_Addr(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addr := s.Addr()
+	if addr == "" {
+		t.Fatal("expected non-empty addr")
+	}
+	if addr != ln.Addr().String() {
+		t.Fatalf("expected %s, got %s", ln.Addr().String(), addr)
+	}
+}
+
+func TestServer_Addr_NilListener(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{}
+	if got := s.Addr(); got != "" {
+		t.Fatalf("expected empty string, got %q", got)
+	}
+}
+
+func TestServer_Stop(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should not panic and should close listener
+	s.Stop()
+
+	// Verify listener is closed
+	_, err = ln.Accept()
+	if err == nil {
+		t.Fatal("expected error after stopping server")
+	}
+}
+
+func TestServer_disconnected_NoItem(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should not panic when identifier is not in registry
+	identifier := id.New([]byte("unknown"))
+	s.disconnected(identifier)
+}
+
+func TestServer_disconnected_WithListeners(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	// Create a listener to be tracked
+	tunnelLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	item := &RegistryItem{
+		Hosts:     []string{},
+		Listeners: []net.Listener{tunnelLn},
+	}
+	if err := s.set(item, identifier); err != nil {
+		t.Fatal(err)
+	}
+
+	// disconnected should close the tunnel listener
+	s.disconnected(identifier)
+
+	// Verify listener was closed
+	_, err = tunnelLn.Accept()
+	if err == nil {
+		t.Fatal("expected error from closed listener")
+	}
+}
+
+func TestServer_addTunnels_TCP(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	tunnels := map[string]*proto.Tunnel{
+		"web": {Protocol: proto.TCP, Addr: "127.0.0.1:0"},
+	}
+
+	err = s.addTunnels(tunnels, identifier)
+	if err != nil {
+		t.Fatalf("addTunnels failed: %v", err)
+	}
+
+	// Cleanup: clear the registry to close created listeners
+	s.disconnected(identifier)
+}
+
+func TestServer_addTunnels_UnsupportedProto(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	tunnels := map[string]*proto.Tunnel{
+		"web": {Protocol: "udp", Addr: "127.0.0.1:0"},
+	}
+
+	err = s.addTunnels(tunnels, identifier)
+	if err == nil {
+		t.Fatal("expected error for unsupported protocol")
+	}
+}
+
+func TestServer_addTunnels_ListenError(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	tunnels := map[string]*proto.Tunnel{
+		"web": {Protocol: proto.TCP, Addr: "invalid-addr-no-port"},
+	}
+
+	err = s.addTunnels(tunnels, identifier)
+	if err == nil {
+		t.Fatal("expected error for invalid listen address")
+	}
+}
+
+func TestServer_notifyError_NonNilError(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test"))
+
+	// notifyError with non-nil error but no connection in pool.
+	// Should not panic; the HTTP request will fail but error is only logged.
+	s.notifyError(fmt.Errorf("test error"), identifier)
+}
+
+func TestServer_notifyError_NilError(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test"))
+
+	// Should short-circuit, no panic
+	s.notifyError(nil, identifier)
+}
+
+func TestServer_Unsubscribe(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test-client"))
+	s.Subscribe(identifier)
+
+	if !s.IsSubscribed(identifier) {
+		t.Fatal("expected client to be subscribed")
+	}
+
+	item := s.Unsubscribe(identifier)
+	if item == nil {
+		t.Fatal("expected non-nil registry item")
+	}
+
+	if s.IsSubscribed(identifier) {
+		t.Fatal("expected client to be unsubscribed")
+	}
+}
+
+func TestServer_Ping_NotConnected(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test"))
+	_, err = s.Ping(identifier)
+	if err != errClientNotConnected {
+		t.Fatalf("expected errClientNotConnected, got %v", err)
+	}
+}
+
+func TestServer_connectRequest(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test"))
+	msg := &proto.ControlMessage{
+		Action:         proto.ActionProxy,
+		ForwardedHost:  "localhost:80",
+		ForwardedProto: proto.TCP,
+	}
+
+	req, err := s.connectRequest(identifier, msg, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if req.Method != "PUT" {
+		t.Fatalf("expected PUT method, got %s", req.Method)
+	}
+
+	if req.URL.String() != s.connPool.URL(identifier) {
+		t.Fatalf("expected URL %s, got %s", s.connPool.URL(identifier), req.URL.String())
+	}
+
+	if req.Header.Get(proto.HeaderAction) != proto.ActionProxy {
+		t.Fatalf("expected action header %s, got %s", proto.ActionProxy, req.Header.Get(proto.HeaderAction))
+	}
+
+	if req.Header.Get(proto.HeaderForwardedHost) != "localhost:80" {
+		t.Fatalf("expected forwarded host localhost:80, got %s", req.Header.Get(proto.HeaderForwardedHost))
+	}
+
+	if req.Header.Get(proto.HeaderForwardedProto) != proto.TCP {
+		t.Fatalf("expected forwarded proto tcp, got %s", req.Header.Get(proto.HeaderForwardedProto))
+	}
+}
+
+func TestServer_Start_ContextCancel(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan error, 1)
+	go func() {
+		done <- s.Start(ctx)
+	}()
+
+	// Give Start time to enter its loop
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		// net.ErrClosed is expected since Stop closes the listener
+		if err == nil {
+			t.Fatal("expected error from Start")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Start did not return after context cancel")
+	}
+}
+
+func TestServer_listen_ClosedListener(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{Listener: ln})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tunnelLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := id.New([]byte("test"))
+
+	// Close the listener before calling listen
+	tunnelLn.Close()
+
+	done := make(chan struct{})
+	go func() {
+		s.listen(tunnelLn, identifier)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// goroutine exited as expected
+	case <-time.After(3 * time.Second):
+		t.Fatal("listen did not return for closed listener")
+	}
+}
+
+func TestServer_handleClient_AutoSubscribe_E2E(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := testTLSConfig(t)
+
+	// Create a raw TCP listener (not TLS) — server wraps with tls.Server internally
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:      ln,
+		TLSConfig:     serverTLS,
+		AutoSubscribe: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go s.Start(ctx)
+
+	// Give server time to start
+	time.Sleep(50 * time.Millisecond)
+
+	// Connect as a client with TLS
+	c, err := NewClient(&ClientConfig{
+		ServerAddr:      ln.Addr().String(),
+		TLSClientConfig: clientTLS,
+		Tunnels: map[string]*proto.Tunnel{
+			"web": {Protocol: proto.TCP, Addr: "127.0.0.1:0"},
+		},
+		Proxy: Proxy(ProxyFuncs{}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientCtx, clientCancel := context.WithCancel(context.Background())
+
+	clientDone := make(chan error, 1)
+	go func() {
+		clientDone <- c.Start(clientCtx)
+	}()
+
+	// Wait for connection to be established
+	deadline := time.After(5 * time.Second)
+	for {
+		if c.Connected() {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("client did not connect within timeout")
+		case err := <-clientDone:
+			t.Fatalf("client Start returned early: %v", err)
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	// Cleanup: stop client first, then server
+	c.Stop()
+	clientCancel()
+	select {
+	case <-clientDone:
+	case <-time.After(3 * time.Second):
+		// Client may not return promptly; that's OK for this test
+	}
+	s.Stop()
+}
+
+func TestServer_handleClient_NotSubscribed(t *testing.T) {
+	t.Parallel()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	s, err := NewServer(&ServerConfig{
+		Listener:      ln,
+		AutoSubscribe: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a pipe to simulate a connection (not a *tls.Conn, so it will be rejected)
+	server, client := net.Pipe()
+	defer client.Close()
+
+	done := make(chan struct{})
+	go func() {
+		s.handleClient(server)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// handleClient returned (rejected due to non-TLS conn)
+	case <-time.After(3 * time.Second):
+		t.Fatal("handleClient did not return")
+	}
+}

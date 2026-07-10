@@ -30,3 +30,59 @@ func TestFilterLogger_Log(t *testing.T) {
 	f.Log("level", 3)
 	f.Log("level", 4)
 }
+
+func TestFilterLogger_NoLevelKey(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	b := tunnelmock.NewMockLogger(ctrl)
+	f := NewFilterLogger(b, 1)
+
+	// Message without "level" key should pass through
+	b.EXPECT().Log("msg", "hello")
+	f.Log("msg", "hello")
+}
+
+func TestFilterLogger_NonStringKey(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	b := tunnelmock.NewMockLogger(ctrl)
+	f := NewFilterLogger(b, 1)
+
+	// Non-string key should be skipped, message passes through
+	b.EXPECT().Log(42, "value")
+	f.Log(42, "value")
+}
+
+func TestFilterLogger_NonIntLevel(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	b := tunnelmock.NewMockLogger(ctrl)
+	f := NewFilterLogger(b, 1)
+
+	// "level" with non-int value should pass through
+	b.EXPECT().Log("level", "info")
+	f.Log("level", "info")
+}
+
+func TestFilterLogger_OddKeyvals(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	b := tunnelmock.NewMockLogger(ctrl)
+	f := NewFilterLogger(b, 1)
+
+	// "level" as last key with no value — should pass through
+	b.EXPECT().Log("level")
+	f.Log("level")
+}

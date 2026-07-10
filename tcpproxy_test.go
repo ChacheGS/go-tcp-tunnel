@@ -1,7 +1,10 @@
 package tunnel
 
 import (
+	"io"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
@@ -137,6 +140,111 @@ func TestTCPProxy_localAddrFor(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTCPProxy_Proxy_Success(t *testing.T) {
+	t.Parallel()
+
+	// Start a TCP echo server: reads data, echoes, then closes
+	echoLn, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer echoLn.Close()
+
+	go func() {
+		conn, err := echoLn.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		buf := make([]byte, 1024)
+		n, _ := conn.Read(buf)
+		if n > 0 {
+			conn.Write(buf[:n])
+		}
+	}()
+
+	p := NewTCPProxy(echoLn.Addr().String(), nil)
+
+	msg := &proto.ControlMessage{
+		Action:         proto.ActionProxy,
+		ForwardedHost:  echoLn.Addr().String(),
+		ForwardedProto: proto.TCP,
+	}
+
+	// pr/pw simulate the "user→tunnel" direction (r io.ReadCloser)
+	// wPr/wPw simulate the "tunnel→user" direction (w io.Writer)
+	pr, pw := io.Pipe()
+	wPr, wPw := io.Pipe()
+
+	testData := []byte("hello tunnel")
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		p.Proxy(wPw, pr, msg)
+		wPw.Close()
+	}()
+
+	// Send data from "user" and close
+	pw.Write(testData)
+	pw.Close()
+
+	// Read echoed data from "tunnel→user"
+	buf := make([]byte, 1024)
+	n, _ := wPr.Read(buf)
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Proxy did not return")
+	}
+
+	if n == 0 {
+		t.Fatal("expected echoed data from proxy")
+	}
+	if string(buf[:n]) != string(testData) {
+		t.Fatalf("expected %q, got %q", testData, buf[:n])
+	}
+}
+
+func TestTCPProxy_Proxy_NoTarget(t *testing.T) {
+	t.Parallel()
+
+	// MultiTCPProxy with no matching address
+	addrMap := map[string]string{
+		"other.com:80": "localhost:9999",
+	}
+	p := NewMultiTCPProxy(addrMap, nil)
+
+	msg := &proto.ControlMessage{
+		Action:         proto.ActionProxy,
+		ForwardedHost:  "nomatch.com:443",
+		ForwardedProto: proto.TCP,
+	}
+
+	// Should return without panic (no target found, but localAddr is empty)
+	p.Proxy(nil, nil, msg)
+}
+
+func TestTCPProxy_Proxy_DialFailure(t *testing.T) {
+	t.Parallel()
+
+	// Point to an address that won't accept connections
+	p := NewTCPProxy("127.0.0.1:1", nil)
+
+	msg := &proto.ControlMessage{
+		Action:         proto.ActionProxy,
+		ForwardedHost:  "127.0.0.1:1",
+		ForwardedProto: proto.TCP,
+	}
+
+	pr, pw := io.Pipe()
+	pw.Close()
+
+	// Should return without panic (dial fails, logged)
+	p.Proxy(nil, pr, msg)
 }
 
 func TestTCPProxy_Proxy_UnsupportedProtocol(t *testing.T) {
