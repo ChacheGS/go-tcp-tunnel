@@ -14,12 +14,12 @@ import (
 	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
 
-// TCPProxy forwards opaque byte streams by dialing a local address and
-// copying bytes in both directions. Despite the name, it also carries http
+// StreamProxy forwards opaque byte streams by dialing a local address and
+// copying bytes in both directions. It handles both tcp/tcp4/tcp6 and http
 // tunnels: an http tunnel needs nothing more than this same byte-pipe
 // behavior, since the server has already routed the connection to the right
 // client by the time it reaches here (see ControlMessage.ForwardedProto).
-type TCPProxy struct {
+type StreamProxy struct {
 	// localAddr specifies default TCP address of the local server.
 	localAddr string
 	// localAddrMap specifies mapping from ControlMessage.ForwardedHost to
@@ -33,34 +33,34 @@ type TCPProxy struct {
 	logger log.Logger
 }
 
-// NewTCPProxy creates new direct TCPProxy, everything will be proxied to
-// localAddr.
-func NewTCPProxy(localAddr string, logger log.Logger) *TCPProxy {
+// NewStreamProxy creates new direct StreamProxy, everything will be proxied
+// to localAddr.
+func NewStreamProxy(localAddr string, logger log.Logger) *StreamProxy {
 	if logger == nil {
 		logger = log.NewNopLogger()
 	}
 
-	return &TCPProxy{
+	return &StreamProxy{
 		localAddr: localAddr,
 		logger:    logger,
 	}
 }
 
-// NewMultiTCPProxy creates a new dispatching TCPProxy, connections may go to
-// different backends based on localAddrMap.
-func NewMultiTCPProxy(localAddrMap map[string]string, logger log.Logger) *TCPProxy {
+// NewMultiStreamProxy creates a new dispatching StreamProxy, connections may
+// go to different backends based on localAddrMap.
+func NewMultiStreamProxy(localAddrMap map[string]string, logger log.Logger) *StreamProxy {
 	if logger == nil {
 		logger = log.NewNopLogger()
 	}
 
-	return &TCPProxy{
+	return &StreamProxy{
 		localAddrMap: localAddrMap,
 		logger:       logger,
 	}
 }
 
 // Proxy is a ProxyFunc.
-func (p *TCPProxy) Proxy(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
+func (p *StreamProxy) Proxy(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
 	switch msg.ForwardedProto {
 	case proto.TCP, proto.TCP4, proto.TCP6, proto.HTTP:
 		// ok
@@ -123,7 +123,7 @@ func (p *TCPProxy) Proxy(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage
 	<-done
 }
 
-func (p *TCPProxy) localAddrFor(hostPort string) string {
+func (p *StreamProxy) localAddrFor(hostPort string) string {
 	if len(p.localAddrMap) == 0 {
 		return p.localAddr
 	}

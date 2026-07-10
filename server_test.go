@@ -1071,7 +1071,7 @@ func TestServer_handleHTTPConn_KnownHost_RoutesToClient(t *testing.T) {
 		_ = n
 	}()
 
-	tcpProxy := NewMultiTCPProxy(map[string]string{
+	tcpProxy := NewMultiStreamProxy(map[string]string{
 		"myapp": echoLn.Addr().String(),
 	}, nil)
 
@@ -1081,7 +1081,7 @@ func TestServer_handleHTTPConn_KnownHost_RoutesToClient(t *testing.T) {
 		Tunnels: map[string]*proto.Tunnel{
 			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
 		},
-		Proxy: Proxy(ProxyFuncs{TCP: tcpProxy.Proxy}),
+		Proxy: Proxy(ProxyFuncs{Stream: tcpProxy.Proxy}),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1165,7 +1165,7 @@ func TestServer_handleHTTPConn_HostHeaderIsCaseInsensitive(t *testing.T) {
 		_ = n
 	}()
 
-	tcpProxy := NewMultiTCPProxy(map[string]string{
+	tcpProxy := NewMultiStreamProxy(map[string]string{
 		"myapp": echoLn.Addr().String(),
 	}, nil)
 
@@ -1175,7 +1175,7 @@ func TestServer_handleHTTPConn_HostHeaderIsCaseInsensitive(t *testing.T) {
 		Tunnels: map[string]*proto.Tunnel{
 			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
 		},
-		Proxy: Proxy(ProxyFuncs{TCP: tcpProxy.Proxy}),
+		Proxy: Proxy(ProxyFuncs{Stream: tcpProxy.Proxy}),
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -16,7 +16,7 @@ func TestProxy_TCP(t *testing.T) {
 	for _, p := range protos {
 		called := false
 		pf := Proxy(ProxyFuncs{
-			TCP: func(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
+			Stream: func(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
 				called = true
 			},
 		})
@@ -38,7 +38,7 @@ func TestProxy_NilHandler(t *testing.T) {
 	t.Parallel()
 
 	pf := Proxy(ProxyFuncs{
-		TCP: nil,
+		Stream: nil,
 	})
 
 	msg := &proto.ControlMessage{
@@ -56,7 +56,7 @@ func TestProxy_UnknownProtocol(t *testing.T) {
 
 	called := false
 	pf := Proxy(ProxyFuncs{
-		TCP: func(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
+		Stream: func(w io.Writer, r io.ReadCloser, msg *proto.ControlMessage) {
 			called = true
 		},
 	})

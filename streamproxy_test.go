@@ -9,10 +9,10 @@ import (
 	"github.com/jlandowner/go-tcp-tunnel/proto"
 )
 
-func TestNewTCPProxy(t *testing.T) {
+func TestNewStreamProxy(t *testing.T) {
 	t.Parallel()
 
-	p := NewTCPProxy("localhost:8080", nil)
+	p := NewStreamProxy("localhost:8080", nil)
 	if p == nil {
 		t.Fatal("expected non-nil proxy")
 	}
@@ -24,7 +24,7 @@ func TestNewTCPProxy(t *testing.T) {
 	}
 }
 
-func TestNewMultiTCPProxy(t *testing.T) {
+func TestNewMultiStreamProxy(t *testing.T) {
 	t.Parallel()
 
 	addrMap := map[string]string{
@@ -32,7 +32,7 @@ func TestNewMultiTCPProxy(t *testing.T) {
 		"other.com:443":  "localhost:8443",
 	}
 
-	p := NewMultiTCPProxy(addrMap, nil)
+	p := NewMultiStreamProxy(addrMap, nil)
 	if p == nil {
 		t.Fatal("expected non-nil proxy")
 	}
@@ -44,7 +44,7 @@ func TestNewMultiTCPProxy(t *testing.T) {
 	}
 }
 
-func TestTCPProxy_localAddrFor(t *testing.T) {
+func TestStreamProxy_localAddrFor(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -130,7 +130,7 @@ func TestTCPProxy_localAddrFor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &TCPProxy{
+			p := &StreamProxy{
 				localAddr:    tt.localAddr,
 				localAddrMap: tt.localAddrMap,
 			}
@@ -142,7 +142,7 @@ func TestTCPProxy_localAddrFor(t *testing.T) {
 	}
 }
 
-func TestTCPProxy_Proxy_Success(t *testing.T) {
+func TestStreamProxy_Proxy_Success(t *testing.T) {
 	t.Parallel()
 
 	// Start a TCP echo server: reads data, echoes, then closes
@@ -165,7 +165,7 @@ func TestTCPProxy_Proxy_Success(t *testing.T) {
 		}
 	}()
 
-	p := NewTCPProxy(echoLn.Addr().String(), nil)
+	p := NewStreamProxy(echoLn.Addr().String(), nil)
 
 	msg := &proto.ControlMessage{
 		Action:         proto.ActionProxy,
@@ -209,14 +209,14 @@ func TestTCPProxy_Proxy_Success(t *testing.T) {
 	}
 }
 
-func TestTCPProxy_Proxy_NoTarget(t *testing.T) {
+func TestStreamProxy_Proxy_NoTarget(t *testing.T) {
 	t.Parallel()
 
-	// MultiTCPProxy with no matching address
+	// MultiStreamProxy with no matching address
 	addrMap := map[string]string{
 		"other.com:80": "localhost:9999",
 	}
-	p := NewMultiTCPProxy(addrMap, nil)
+	p := NewMultiStreamProxy(addrMap, nil)
 
 	msg := &proto.ControlMessage{
 		Action:         proto.ActionProxy,
@@ -228,11 +228,11 @@ func TestTCPProxy_Proxy_NoTarget(t *testing.T) {
 	p.Proxy(nil, nil, msg)
 }
 
-func TestTCPProxy_Proxy_DialFailure(t *testing.T) {
+func TestStreamProxy_Proxy_DialFailure(t *testing.T) {
 	t.Parallel()
 
 	// Point to an address that won't accept connections
-	p := NewTCPProxy("127.0.0.1:1", nil)
+	p := NewStreamProxy("127.0.0.1:1", nil)
 
 	msg := &proto.ControlMessage{
 		Action:         proto.ActionProxy,
@@ -247,10 +247,10 @@ func TestTCPProxy_Proxy_DialFailure(t *testing.T) {
 	p.Proxy(nil, pr, msg)
 }
 
-func TestTCPProxy_Proxy_UnsupportedProtocol(t *testing.T) {
+func TestStreamProxy_Proxy_UnsupportedProtocol(t *testing.T) {
 	t.Parallel()
 
-	p := NewTCPProxy("localhost:8080", nil)
+	p := NewStreamProxy("localhost:8080", nil)
 
 	msg := &proto.ControlMessage{
 		Action:         proto.ActionProxy,
@@ -262,7 +262,7 @@ func TestTCPProxy_Proxy_UnsupportedProtocol(t *testing.T) {
 	p.Proxy(nil, nil, msg)
 }
 
-func TestTCPProxy_Proxy_HTTPProtocolAccepted(t *testing.T) {
+func TestStreamProxy_Proxy_HTTPProtocolAccepted(t *testing.T) {
 	t.Parallel()
 
 	// local echo server
@@ -284,7 +284,7 @@ func TestTCPProxy_Proxy_HTTPProtocolAccepted(t *testing.T) {
 		}
 	}()
 
-	p := NewMultiTCPProxy(map[string]string{
+	p := NewMultiStreamProxy(map[string]string{
 		"myapp": ln.Addr().String(),
 	}, nil)
 

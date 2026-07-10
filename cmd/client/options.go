@@ -255,6 +255,6 @@ func proxy(m map[string]*Tunnel, logger log.Logger) tunnel.ProxyFunc {
 	}
 
 	return tunnel.Proxy(tunnel.ProxyFuncs{
-		TCP: tunnel.NewMultiTCPProxy(tcpAddr, log.NewContext(logger).WithPrefix("proxy", "TCP")).Proxy,
+		Stream: tunnel.NewMultiStreamProxy(tcpAddr, log.NewContext(logger).WithPrefix("proxy", "stream")).Proxy,
 	})
 }

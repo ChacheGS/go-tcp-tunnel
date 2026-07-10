@@ -74,7 +74,7 @@ func makeTunnelServer(t testing.TB) *tunnel.Server {
 }
 
 func makeTunnelClient(t testing.TB, serverAddr string, tcpLocalAddr, tcpAddr net.Addr) *tunnel.Client {
-	tcpProxy := tunnel.NewMultiTCPProxy(map[string]string{
+	tcpProxy := tunnel.NewMultiStreamProxy(map[string]string{
 		port(tcpLocalAddr): tcpAddr.String(),
 	}, log.NewStdLogger())
 
@@ -90,7 +90,7 @@ func makeTunnelClient(t testing.TB, serverAddr string, tcpLocalAddr, tcpAddr net
 		TLSClientConfig: tlsConfig(),
 		Tunnels:         tunnels,
 		Proxy: tunnel.Proxy(tunnel.ProxyFuncs{
-			TCP: tcpProxy.Proxy,
+			Stream: tcpProxy.Proxy,
 		}),
 		Logger: log.NewStdLogger(),
 	})
@@ -286,7 +286,7 @@ func TestIntegration_HTTPSubdomainTunnel(t *testing.T) {
 	// give the server a moment to open both listeners
 	time.Sleep(50 * time.Millisecond)
 
-	tcpProxy := tunnel.NewMultiTCPProxy(map[string]string{
+	tcpProxy := tunnel.NewMultiStreamProxy(map[string]string{
 		"myapp": localLn.Addr().String(),
 	}, log.NewStdLogger())
 
@@ -297,7 +297,7 @@ func TestIntegration_HTTPSubdomainTunnel(t *testing.T) {
 			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
 		},
 		Proxy: tunnel.Proxy(tunnel.ProxyFuncs{
-			TCP: tcpProxy.Proxy,
+			Stream: tcpProxy.Proxy,
 		}),
 		Logger: log.NewStdLogger(),
 	})
@@ -375,7 +375,7 @@ func TestIntegration_HTTPSubdomainTunnel_WebSocket(t *testing.T) {
 	// give the server a moment to open both listeners
 	time.Sleep(50 * time.Millisecond)
 
-	tcpProxy := tunnel.NewMultiTCPProxy(map[string]string{
+	tcpProxy := tunnel.NewMultiStreamProxy(map[string]string{
 		"myapp": localLn.Addr().String(),
 	}, log.NewStdLogger())
 
@@ -386,7 +386,7 @@ func TestIntegration_HTTPSubdomainTunnel_WebSocket(t *testing.T) {
 			"myapp": {Protocol: proto.HTTP, Host: "myapp"},
 		},
 		Proxy: tunnel.Proxy(tunnel.ProxyFuncs{
-			TCP: tcpProxy.Proxy,
+			Stream: tcpProxy.Proxy,
 		}),
 		Logger: log.NewStdLogger(),
 	})
