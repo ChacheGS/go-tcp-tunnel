@@ -7,6 +7,7 @@ package ca
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"strings"
 	"testing"
 	"time"
 )
@@ -156,5 +157,28 @@ func TestIssueCert_InvalidCAPEM(t *testing.T) {
 	_, _, err := IssueCert([]byte("not a valid PEM"), []byte("also not valid"), "myapp", nil, time.Hour)
 	if err == nil {
 		t.Fatal("expected error for invalid CA PEM")
+	}
+}
+
+func TestIssueCert_RejectsNonCACertificate(t *testing.T) {
+	t.Parallel()
+
+	// Generate a real CA, then issue a leaf from it and try to use that
+	// leaf (IsCA false) as if it were itself a CA to sign a second leaf.
+	caCertPEM, caKeyPEM, err := GenerateCA("test CA", 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leafCertPEM, leafKeyPEM, err := IssueCert(caCertPEM, caKeyPEM, "not-a-ca", nil, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = IssueCert(leafCertPEM, leafKeyPEM, "myapp", nil, time.Hour)
+	if err == nil {
+		t.Fatal("expected error when the given certificate is not a CA")
+	}
+	if !strings.Contains(err.Error(), "not a CA") {
+		t.Fatalf("expected 'not a CA' error, got: %v", err)
 	}
 }

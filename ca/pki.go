@@ -138,6 +138,9 @@ func parseCAKeyPair(caCertPEM, caKeyPEM []byte) (*x509.Certificate, *ecdsa.Priva
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse CA certificate: %s", err)
 	}
+	if !caCert.IsCA {
+		return nil, nil, fmt.Errorf("certificate is not a CA (IsCA false); did you point -ca-dir at an issued leaf cert instead of the CA?")
+	}
 
 	keyBlock, _ := pem.Decode(caKeyPEM)
 	if keyBlock == nil {
