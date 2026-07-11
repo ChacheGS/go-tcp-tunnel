@@ -114,6 +114,47 @@ its `Host` header — a connection reused across different subdomains would be
 routed incorrectly. WebSocket connections are unaffected either way, since
 Caddy takes an upgraded connection out of its reuse pool automatically.
 
+## Certificate setup
+
+Client and server authenticate each other with mutual TLS. Rather than
+sharing one certificate between the server and every client, generate a CA
+once and issue a distinct certificate per role:
+
+```sh
+# once, ever — keep ca/ca.key somewhere safe (a secret manager, not source
+# control); ca/ca.crt is not sensitive and is what -ca-crt points at
+go-tcp-tunnel ca init
+
+# issue the server's own identity cert — -addr must match what clients will
+# put in their server_addr / dial
+go-tcp-tunnel ca -name server -addr tunnel.example.com issue
+
+# issue one cert per client device
+go-tcp-tunnel ca -name laptop issue
+go-tcp-tunnel ca -name desktop issue
+```
+
+Each `ca issue` prints the new certificate's client ID — the same fingerprint
+`go-tcp-tunnel client id` would print for that certificate, and the value
+you'd put in the server's `-client-ids` flag if you're using an explicit
+allowlist instead of auto-subscribe.
+
+Point the server at its issued cert and the CA:
+
+```sh
+go-tcp-tunnel server -tls-crt server/tls.crt -tls-key server/tls.key -ca-crt ca/ca.crt
+```
+
+Copy each client's `tls.crt`/`tls.key` to that device, and point the client
+at them plus the same CA cert:
+
+```sh
+go-tcp-tunnel client -tls-crt laptop/tls.crt -tls-key laptop/tls.key -ca-crt ca/ca.crt -config tunnels.yaml start-all
+```
+
+Adding a new client from then on is just another `ca issue` and copying two
+files — the CA and the server's own cert never need to change.
+
 ## How it works
 
 A client opens TLS connection to a server. The server accepts connections from known clients only. The client is recognized by its TLS certificate ID. The server is publicly available and proxies incoming connections to the client. Then the connection is further proxied in the client's network.
