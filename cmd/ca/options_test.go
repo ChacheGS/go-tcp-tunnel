@@ -132,11 +132,46 @@ func TestExecuteInit_CreatesCAFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat(caDir + "/ca.crt"); err != nil {
+	crtInfo, err := os.Stat(caDir + "/ca.crt")
+	if err != nil {
 		t.Fatalf("expected ca.crt to be created: %v", err)
 	}
-	if _, err := os.Stat(caDir + "/ca.key"); err != nil {
+	if perm := crtInfo.Mode().Perm(); perm != 0644 {
+		t.Fatalf("expected ca.crt to be mode 0644, got %o", perm)
+	}
+
+	keyInfo, err := os.Stat(caDir + "/ca.key")
+	if err != nil {
 		t.Fatalf("expected ca.key to be created: %v", err)
+	}
+	if perm := keyInfo.Mode().Perm(); perm != 0600 {
+		t.Fatalf("expected ca.key to be mode 0600, got %o", perm)
+	}
+}
+
+func TestExecuteInit_CleansUpCertIfKeyWriteFails(t *testing.T) {
+	dir := t.TempDir()
+	caDir := dir + "/ca"
+
+	if err := os.MkdirAll(caDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Create ca.key as a directory so os.WriteFile fails writing the key,
+	// while ca.crt (a different filename) writes successfully first.
+	if err := os.Mkdir(caDir+"/ca.key", 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	Command()
+	opts.caDir = caDir
+	opts.command = "init"
+
+	if err := Execute(); err == nil {
+		t.Fatal("expected error when the key file can't be written")
+	}
+
+	if _, err := os.Stat(caDir + "/ca.crt"); !os.IsNotExist(err) {
+		t.Fatalf("expected ca.crt to be cleaned up after the key write failed, stat error: %v", err)
 	}
 }
 
@@ -183,11 +218,55 @@ func TestExecuteIssue_CreatesCertFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := os.Stat(outDir + "/tls.crt"); err != nil {
+	crtInfo, err := os.Stat(outDir + "/tls.crt")
+	if err != nil {
 		t.Fatalf("expected tls.crt to be created: %v", err)
 	}
-	if _, err := os.Stat(outDir + "/tls.key"); err != nil {
+	if perm := crtInfo.Mode().Perm(); perm != 0644 {
+		t.Fatalf("expected tls.crt to be mode 0644, got %o", perm)
+	}
+
+	keyInfo, err := os.Stat(outDir + "/tls.key")
+	if err != nil {
 		t.Fatalf("expected tls.key to be created: %v", err)
+	}
+	if perm := keyInfo.Mode().Perm(); perm != 0600 {
+		t.Fatalf("expected tls.key to be mode 0600, got %o", perm)
+	}
+}
+
+func TestExecuteIssue_CleansUpCertIfKeyWriteFails(t *testing.T) {
+	dir := t.TempDir()
+	caDir := dir + "/ca"
+	outDir := dir + "/laptop"
+
+	Command()
+	opts.caDir = caDir
+	opts.command = "init"
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Create tls.key as a directory so os.WriteFile fails writing the key,
+	// while tls.crt (a different filename) writes successfully first.
+	if err := os.Mkdir(outDir+"/tls.key", 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	opts.command = "issue"
+	opts.name = "laptop"
+	opts.outDir = outDir
+	opts.addr = ""
+
+	if err := Execute(); err == nil {
+		t.Fatal("expected error when the key file can't be written")
+	}
+
+	if _, err := os.Stat(outDir + "/tls.crt"); !os.IsNotExist(err) {
+		t.Fatalf("expected tls.crt to be cleaned up after the key write failed, stat error: %v", err)
 	}
 }
 

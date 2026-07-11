@@ -87,6 +87,21 @@ func validity() time.Duration {
 	return validityYears * 365 * 24 * time.Hour
 }
 
+// writeKeyPair writes certPEM to crtPath (mode 0644) then keyPEM to keyPath
+// (mode 0600). If writing the key fails after the cert was already
+// written, the cert is removed, so a failed init/issue doesn't leave a
+// half-written, keyless certificate behind.
+func writeKeyPair(crtPath, keyPath string, certPEM, keyPEM []byte) error {
+	if err := os.WriteFile(crtPath, certPEM, 0644); err != nil {
+		return fmt.Errorf("failed to write %s: %s", crtPath, err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+		os.Remove(crtPath)
+		return fmt.Errorf("failed to write %s: %s", keyPath, err)
+	}
+	return nil
+}
+
 func Execute() error {
 	switch opts.command {
 	case "init":
@@ -116,11 +131,8 @@ func executeInit() error {
 	if err := os.MkdirAll(opts.caDir, 0755); err != nil {
 		return fmt.Errorf("failed to create %s: %s", opts.caDir, err)
 	}
-	if err := os.WriteFile(caCrtPath, certPEM, 0644); err != nil {
-		return fmt.Errorf("failed to write %s: %s", caCrtPath, err)
-	}
-	if err := os.WriteFile(caKeyPath, keyPEM, 0600); err != nil {
-		return fmt.Errorf("failed to write %s: %s", caKeyPath, err)
+	if err := writeKeyPair(caCrtPath, caKeyPath, certPEM, keyPEM); err != nil {
+		return err
 	}
 
 	fmt.Printf("CA created:\n  %s\n  %s\n", caCrtPath, caKeyPath)
@@ -163,11 +175,8 @@ func executeIssue() error {
 	if err := os.MkdirAll(opts.outDir, 0755); err != nil {
 		return fmt.Errorf("failed to create %s: %s", opts.outDir, err)
 	}
-	if err := os.WriteFile(crtPath, certPEM, 0644); err != nil {
-		return fmt.Errorf("failed to write %s: %s", crtPath, err)
-	}
-	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
-		return fmt.Errorf("failed to write %s: %s", keyPath, err)
+	if err := writeKeyPair(crtPath, keyPath, certPEM, keyPEM); err != nil {
+		return err
 	}
 
 	block, _ := pem.Decode(certPEM)
