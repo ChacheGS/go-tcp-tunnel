@@ -7,6 +7,7 @@ package ca
 import (
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -285,6 +286,41 @@ func TestExecuteIssue_MissingCADirectory(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "ca init") {
 		t.Fatalf("expected error to point at 'ca init', got: %v", err)
+	}
+}
+
+func TestExecuteIssue_CAKeyFileTooOpen(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits are not meaningfully enforced on windows")
+	}
+
+	dir := t.TempDir()
+	caDir := dir + "/ca"
+
+	Command()
+	opts.caDir = caDir
+	opts.command = "init"
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Loosen the CA's own key after init, simulating a backup/restore or a
+	// stray chmod that widened its permissions after the fact.
+	if err := os.Chmod(caDir+"/ca.key", 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	opts.command = "issue"
+	opts.name = "laptop"
+	opts.outDir = dir + "/laptop"
+	opts.addr = ""
+
+	err := Execute()
+	if err == nil {
+		t.Fatal("expected error when the CA's key file is world-readable")
+	}
+	if !strings.Contains(err.Error(), "too open") {
+		t.Fatalf("expected 'too open' permissions error, got: %v", err)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,17 @@ import (
 	"github.com/ChacheGS/go-tcp-tunnel/log"
 	"github.com/ChacheGS/go-tcp-tunnel/proto"
 )
+
+func TestMain(m *testing.M) {
+	// testdata/selfsigned.key is a git-tracked fixture; git doesn't preserve
+	// permission bits beyond the executable flag, so a fresh checkout
+	// leaves it group/other-readable regardless of local history. Tighten
+	// it before any test that loads it through CheckPrivateKeyPermissions
+	// runs, since that's a real restriction the production code now
+	// enforces, not just a local artifact of this machine.
+	os.Chmod("../../testdata/selfsigned.key", 0600)
+	os.Exit(m.Run())
+}
 
 func TestCompleteArgs(t *testing.T) {
 	t.Parallel()
@@ -290,6 +302,76 @@ func TestTLSConfig_Client_MissingCertFile(t *testing.T) {
 	_, err := tlsConfig(&ClientConfig{ServerAddr: "example.com:5223"})
 	if err == nil {
 		t.Fatal("expected error for missing cert file")
+	}
+}
+
+func TestTLSConfig_Client_KeyFileTooOpen(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits are not meaningfully enforced on windows")
+	}
+
+	keyBytes, err := os.ReadFile("../../testdata/selfsigned.key")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	insecureKey := filepath.Join(dir, "tls.key")
+	if err := os.WriteFile(insecureKey, keyBytes, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	Command()
+	opts.tlsCrt = "../../testdata/selfsigned.crt"
+	opts.tlsKey = insecureKey
+	opts.rootCA = "../../testdata/selfsigned.crt"
+
+	_, err = tlsConfig(&ClientConfig{ServerAddr: "example.com:5223"})
+	if err == nil {
+		t.Fatal("expected error for a world-readable key file")
+	}
+	if !strings.Contains(err.Error(), "too open") {
+		t.Fatalf("expected 'too open' permissions error, got: %v", err)
+	}
+}
+
+func TestExecute_IDCommand_KeyFileTooOpen(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits are not meaningfully enforced on windows")
+	}
+
+	content := `
+server_addr: 192.168.1.1:5223
+tunnels:
+  web:
+    proto: tcp
+    addr: localhost:8080
+`
+	f := writeTempFile(t, content)
+
+	keyBytes, err := os.ReadFile("../../testdata/selfsigned.key")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	insecureKey := filepath.Join(dir, "tls.key")
+	if err := os.WriteFile(insecureKey, keyBytes, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	Command()
+	opts.config = f
+	opts.command = "id"
+	opts.tlsCrt = "../../testdata/selfsigned.crt"
+	opts.tlsKey = insecureKey
+
+	err = Execute(context.Background())
+	if err == nil {
+		t.Fatal("expected error for a world-readable key file")
+	}
+	if !strings.Contains(err.Error(), "too open") {
+		t.Fatalf("expected 'too open' permissions error, got: %v", err)
 	}
 }
 

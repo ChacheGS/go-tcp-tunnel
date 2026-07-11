@@ -118,6 +118,9 @@ func Execute(ctx context.Context) error {
 
 	switch opts.command {
 	case "id":
+		if err := tunnel.CheckPrivateKeyPermissions(opts.tlsKey); err != nil {
+			return fmt.Errorf("failed to load key pair: %s", err)
+		}
 		cert, err := tls.LoadX509KeyPair(opts.tlsCrt, opts.tlsKey)
 		if err != nil {
 			return fmt.Errorf("failed to load key pair: %s", err)
@@ -185,6 +188,10 @@ func Execute(ctx context.Context) error {
 }
 
 func tlsConfig(config *ClientConfig) (*tls.Config, error) {
+	if err := tunnel.CheckPrivateKeyPermissions(opts.tlsKey); err != nil {
+		return nil, err
+	}
+
 	cert, err := tls.LoadX509KeyPair(opts.tlsCrt, opts.tlsKey)
 	if err != nil {
 		return nil, err

@@ -7,6 +7,9 @@
 package tunnel
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -52,5 +55,48 @@ func TestNormalizeAddress(t *testing.T) {
 		if err != nil && (tt.error == "" || !strings.Contains(err.Error(), tt.error)) {
 			t.Errorf("[%d] expected error contains %q, got %q", i, tt.error, err)
 		}
+	}
+}
+
+func TestCheckPrivateKeyPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits are not meaningfully enforced on windows")
+	}
+
+	tests := []struct {
+		name    string
+		mode    os.FileMode
+		wantErr bool
+	}{
+		{name: "0600 is fine", mode: 0600, wantErr: false},
+		{name: "0400 is fine", mode: 0400, wantErr: false},
+		{name: "0644 is too open (world-readable)", mode: 0644, wantErr: true},
+		{name: "0640 is too open (group-readable)", mode: 0640, wantErr: true},
+		{name: "0666 is too open", mode: 0666, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "tls.key")
+			if err := os.WriteFile(path, []byte("fake key material"), tt.mode); err != nil {
+				t.Fatal(err)
+			}
+
+			err := CheckPrivateKeyPermissions(path)
+			if tt.wantErr && err == nil {
+				t.Fatalf("expected error for mode %04o, got nil", tt.mode)
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("expected no error for mode %04o, got: %v", tt.mode, err)
+			}
+		})
+	}
+}
+
+func TestCheckPrivateKeyPermissions_MissingFile(t *testing.T) {
+	err := CheckPrivateKeyPermissions("/nonexistent/tls.key")
+	if err == nil {
+		t.Fatal("expected error for a missing file")
 	}
 }

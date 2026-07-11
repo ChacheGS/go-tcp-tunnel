@@ -13,6 +13,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"runtime"
 	"strconv"
 
 	"github.com/ChacheGS/go-tcp-tunnel/log"
@@ -65,4 +67,32 @@ func NormalizeAddress(addr string) (string, error) {
 	}
 
 	return fmt.Sprintf("%s:%s", host, port), nil
+}
+
+// CheckPrivateKeyPermissions verifies that the file at path is not
+// readable or writable by group or other, returning an error describing
+// the problem if it is. This guards against using a private key file
+// whose permissions have been loosened after the fact — by a backup
+// restore, a misconfigured deployment, or a stray chmod — mirroring the
+// same class of check OpenSSH performs before using a private key.
+//
+// Not enforced on Windows: Go's os.FileMode there doesn't reliably map
+// to the ACL-based permissions Windows actually uses, so a Unix-style
+// bitmask check would produce false positives (or false confidence)
+// rather than a meaningful guarantee.
+func CheckPrivateKeyPermissions(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if perm := info.Mode().Perm(); perm&0077 != 0 {
+		return fmt.Errorf("permissions %04o for %q are too open: private key files must not be readable or writable by group or other (try: chmod 600 %s)", perm, path, path)
+	}
+
+	return nil
 }

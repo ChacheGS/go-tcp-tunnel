@@ -115,6 +115,10 @@ func Execute(ctx context.Context) error {
 }
 
 func tlsConfig() (*tls.Config, error) {
+	if err := tunnel.CheckPrivateKeyPermissions(opts.tlsKey); err != nil {
+		return nil, err
+	}
+
 	// load certs
 	cert, err := tls.LoadX509KeyPair(opts.tlsCrt, opts.tlsKey)
 	if err != nil {

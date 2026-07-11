@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
+	tunnel "github.com/ChacheGS/go-tcp-tunnel"
 	capki "github.com/ChacheGS/go-tcp-tunnel/ca"
 	"github.com/ChacheGS/go-tcp-tunnel/id"
 )
@@ -146,6 +147,10 @@ func executeIssue() error {
 	caCertPEM, err := os.ReadFile(caCrtPath)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %s (run 'go-tcp-tunnel ca init' first)", caCrtPath, err)
+	}
+
+	if err := tunnel.CheckPrivateKeyPermissions(caKeyPath); err != nil {
+		return fmt.Errorf("failed to read %s: %s", caKeyPath, err)
 	}
 	caKeyPEM, err := os.ReadFile(caKeyPath)
 	if err != nil {

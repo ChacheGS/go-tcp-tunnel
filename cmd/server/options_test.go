@@ -10,9 +10,21 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	// testdata/selfsigned.key is a git-tracked fixture; git doesn't preserve
+	// permission bits beyond the executable flag, so a fresh checkout
+	// leaves it group/other-readable regardless of local history. Tighten
+	// it before any test that loads it through CheckPrivateKeyPermissions
+	// runs, since that's a real restriction the production code now
+	// enforces, not just a local artifact of this machine.
+	os.Chmod("../../testdata/selfsigned.key", 0600)
+	os.Exit(m.Run())
+}
 
 func TestCommand_Defaults(t *testing.T) {
 	cmd := Command()
@@ -96,6 +108,36 @@ func TestTLSConfig_MissingCertFile(t *testing.T) {
 	_, err := tlsConfig()
 	if err == nil {
 		t.Fatal("expected error for missing cert file")
+	}
+}
+
+func TestTLSConfig_KeyFileTooOpen(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits are not meaningfully enforced on windows")
+	}
+
+	keyBytes, err := os.ReadFile("../../testdata/selfsigned.key")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	insecureKey := filepath.Join(dir, "tls.key")
+	if err := os.WriteFile(insecureKey, keyBytes, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	Command()
+	opts.tlsCrt = "../../testdata/selfsigned.crt"
+	opts.tlsKey = insecureKey
+	opts.clientCA = "../../testdata/selfsigned.crt"
+
+	_, err = tlsConfig()
+	if err == nil {
+		t.Fatal("expected error for a world-readable key file")
+	}
+	if !strings.Contains(err.Error(), "too open") {
+		t.Fatalf("expected 'too open' permissions error, got: %v", err)
 	}
 }
 
