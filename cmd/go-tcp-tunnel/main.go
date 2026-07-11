@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/ChacheGS/go-tcp-tunnel/cmd/ca"
 	"github.com/ChacheGS/go-tcp-tunnel/cmd/client"
 	"github.com/ChacheGS/go-tcp-tunnel/cmd/server"
 )
@@ -27,7 +28,7 @@ const banner = `
 `
 const version string = "v0.0.1"
 
-const usage1 string = `Usage: go-tcp-tunnel server|client [OPTIONS]
+const usage1 string = `Usage: go-tcp-tunnel server|client|ca [OPTIONS]
 Options:
 `
 
@@ -35,6 +36,7 @@ const usage2 string = `
 Commands:
 	go-tcp-tunnel server --help
 	go-tcp-tunnel client --help
+	go-tcp-tunnel ca --help
 
 Author:
 	ChacheGS(https://github.com/ChacheGS)
@@ -68,6 +70,7 @@ func main() {
 
 	clientCmd := client.Command()
 	serverCmd := server.Command()
+	caCmd := ca.Command()
 
 	if o.version {
 		fmt.Println(version)
@@ -101,10 +104,23 @@ func main() {
 				fatal("ERROR: %v", err)
 			}
 			return
+
+		case "ca":
+			caCmd.Parse(args[1:])
+			if err := ca.CompleteArgs(caCmd); err != nil {
+				caCmd.Usage()
+				fatal("%v", err)
+			}
+
+			if err := ca.Execute(); err != nil {
+				caCmd.Usage()
+				fatal("ERROR: %v", err)
+			}
+			return
 		}
 	} else {
 		flag.Usage()
-		fatal("ERROR: neither client nor server is specified")
+		fatal("ERROR: neither client, server, nor ca is specified")
 	}
 }
 
