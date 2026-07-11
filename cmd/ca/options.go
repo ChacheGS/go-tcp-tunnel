@@ -23,13 +23,15 @@ options:
 
 const usage2 string = `
 Commands:
-	go-tcp-tunnel ca init [-ca-dir ./ca]
-	go-tcp-tunnel ca issue -name <label> [-addr <host>] [-ca-dir ./ca] [-out-dir ...]
+	go-tcp-tunnel ca [-ca-dir ./ca] init
+	go-tcp-tunnel ca -name <label> [-addr <host>] [-ca-dir ./ca] [-out-dir ...] issue
+
+Note: flags must come before the command (init/issue), not after.
 
 Examples:
 	go-tcp-tunnel ca init
-	go-tcp-tunnel ca issue -name laptop
-	go-tcp-tunnel ca issue -name server -addr tunnel.example.com
+	go-tcp-tunnel ca -name laptop issue
+	go-tcp-tunnel ca -name server -addr tunnel.example.com issue
 
 `
 
