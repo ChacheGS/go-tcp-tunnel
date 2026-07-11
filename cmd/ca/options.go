@@ -8,6 +8,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"time"
+
+	capki "github.com/ChacheGS/go-tcp-tunnel/ca"
 )
 
 const usage1 string = `Usage: go-tcp-tunnel ca <command> [OPTIONS]
@@ -70,4 +74,54 @@ func CompleteArgs(fs *flag.FlagSet) error {
 		return fmt.Errorf("unknown command %q", opts.command)
 	}
 	return nil
+}
+
+const validityYears = 10
+
+func validity() time.Duration {
+	return validityYears * 365 * 24 * time.Hour
+}
+
+func Execute() error {
+	switch opts.command {
+	case "init":
+		return executeInit()
+	case "issue":
+		return executeIssue()
+	}
+	return fmt.Errorf("unknown command %q", opts.command)
+}
+
+func executeInit() error {
+	caCrtPath := filepath.Join(opts.caDir, "ca.crt")
+	caKeyPath := filepath.Join(opts.caDir, "ca.key")
+
+	if _, err := os.Stat(caCrtPath); err == nil {
+		return fmt.Errorf("CA already exists at %s; refusing to overwrite your root of trust", caCrtPath)
+	}
+	if _, err := os.Stat(caKeyPath); err == nil {
+		return fmt.Errorf("CA already exists at %s; refusing to overwrite your root of trust", caKeyPath)
+	}
+
+	certPEM, keyPEM, err := capki.GenerateCA("go-tcp-tunnel CA", validity())
+	if err != nil {
+		return fmt.Errorf("failed to generate CA: %s", err)
+	}
+
+	if err := os.MkdirAll(opts.caDir, 0755); err != nil {
+		return fmt.Errorf("failed to create %s: %s", opts.caDir, err)
+	}
+	if err := os.WriteFile(caCrtPath, certPEM, 0644); err != nil {
+		return fmt.Errorf("failed to write %s: %s", caCrtPath, err)
+	}
+	if err := os.WriteFile(caKeyPath, keyPEM, 0600); err != nil {
+		return fmt.Errorf("failed to write %s: %s", caKeyPath, err)
+	}
+
+	fmt.Printf("CA created:\n  %s\n  %s\n", caCrtPath, caKeyPath)
+	return nil
+}
+
+func executeIssue() error {
+	return fmt.Errorf("not implemented yet")
 }

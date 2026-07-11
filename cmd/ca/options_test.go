@@ -5,6 +5,8 @@
 package ca
 
 import (
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -114,5 +116,47 @@ func TestCompleteArgs_UnknownCommand(t *testing.T) {
 
 	if err := CompleteArgs(cmd); err == nil {
 		t.Fatal("expected error for unknown command")
+	}
+}
+
+func TestExecuteInit_CreatesCAFiles(t *testing.T) {
+	dir := t.TempDir()
+	caDir := dir + "/ca"
+
+	Command()
+	opts.caDir = caDir
+	opts.command = "init"
+
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(caDir + "/ca.crt"); err != nil {
+		t.Fatalf("expected ca.crt to be created: %v", err)
+	}
+	if _, err := os.Stat(caDir + "/ca.key"); err != nil {
+		t.Fatalf("expected ca.key to be created: %v", err)
+	}
+}
+
+func TestExecuteInit_RefusesToOverwriteExistingCert(t *testing.T) {
+	dir := t.TempDir()
+	caDir := dir + "/ca"
+
+	Command()
+	opts.caDir = caDir
+	opts.command = "init"
+
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Second init in the same directory must fail rather than regenerate.
+	err := Execute()
+	if err == nil {
+		t.Fatal("expected error when ca.crt already exists")
+	}
+	if !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("expected 'already exists' error, got: %v", err)
 	}
 }
