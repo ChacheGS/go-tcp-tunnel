@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -108,9 +110,12 @@ func IssueCert(caCertPEM, caKeyPEM []byte, name string, sans []string, validity 
 	for _, san := range sans {
 		if ip := net.ParseIP(san); ip != nil {
 			template.IPAddresses = append(template.IPAddresses, ip)
-		} else {
-			template.DNSNames = append(template.DNSNames, san)
+			continue
 		}
+		if !isValidDNSName(san) {
+			return nil, nil, fmt.Errorf("invalid SAN %q: not a valid IP address or DNS name", san)
+		}
+		template.DNSNames = append(template.DNSNames, san)
 	}
 
 	certDER, err := x509.CreateCertificate(rand.Reader, template, caCert, &key.PublicKey, caKey)
@@ -127,6 +132,26 @@ func IssueCert(caCertPEM, caKeyPEM []byte, name string, sans []string, validity 
 	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 
 	return certPEM, keyPEM, nil
+}
+
+// dnsLabelRE matches a single valid DNS label: letters, digits, and
+// hyphens, 1-63 chars, no leading/trailing hyphen.
+var dnsLabelRE = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$`)
+
+// isValidDNSName reports whether name is a syntactically valid DNS name (a
+// dot-separated sequence of valid labels), catching typos in -addr before
+// they end up silently embedded in an otherwise "successfully" issued
+// certificate that will only fail much later, at TLS handshake time.
+func isValidDNSName(name string) bool {
+	if name == "" || len(name) > 253 {
+		return false
+	}
+	for _, label := range strings.Split(name, ".") {
+		if !dnsLabelRE.MatchString(label) {
+			return false
+		}
+	}
+	return true
 }
 
 func parseCAKeyPair(caCertPEM, caKeyPEM []byte) (*x509.Certificate, *ecdsa.PrivateKey, error) {

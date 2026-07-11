@@ -151,6 +151,55 @@ func TestIssueCert_WithSANs(t *testing.T) {
 	}
 }
 
+func TestIssueCert_WithIPv6SAN(t *testing.T) {
+	t.Parallel()
+
+	caCertPEM, caKeyPEM, err := GenerateCA("test CA", 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	certPEM, _, err := IssueCert(caCertPEM, caKeyPEM, "myserver", []string{"2001:db8::1"}, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	block, _ := pem.Decode(certPEM)
+	leaf, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(leaf.IPAddresses) != 1 || leaf.IPAddresses[0].String() != "2001:db8::1" {
+		t.Fatalf("expected IPAddresses [2001:db8::1], got %v", leaf.IPAddresses)
+	}
+}
+
+func TestIssueCert_RejectsInvalidSAN(t *testing.T) {
+	t.Parallel()
+
+	caCertPEM, caKeyPEM, err := GenerateCA("test CA", 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []string{
+		"not a valid host!!",
+		"",
+		"-leading-hyphen.example.com",
+		"trailing-hyphen-.example.com",
+	}
+
+	for _, san := range tests {
+		t.Run(san, func(t *testing.T) {
+			_, _, err := IssueCert(caCertPEM, caKeyPEM, "myserver", []string{san}, time.Hour)
+			if err == nil {
+				t.Fatalf("expected error for invalid SAN %q", san)
+			}
+		})
+	}
+}
+
 func TestIssueCert_InvalidCAPEM(t *testing.T) {
 	t.Parallel()
 
