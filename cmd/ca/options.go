@@ -5,6 +5,8 @@
 package ca
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	capki "github.com/ChacheGS/go-tcp-tunnel/ca"
+	"github.com/ChacheGS/go-tcp-tunnel/id"
 )
 
 const usage1 string = `Usage: go-tcp-tunnel ca <command> [OPTIONS]
@@ -123,5 +126,55 @@ func executeInit() error {
 }
 
 func executeIssue() error {
-	return fmt.Errorf("not implemented yet")
+	caCrtPath := filepath.Join(opts.caDir, "ca.crt")
+	caKeyPath := filepath.Join(opts.caDir, "ca.key")
+
+	caCertPEM, err := os.ReadFile(caCrtPath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %s (run 'go-tcp-tunnel ca init' first)", caCrtPath, err)
+	}
+	caKeyPEM, err := os.ReadFile(caKeyPath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %s (run 'go-tcp-tunnel ca init' first)", caKeyPath, err)
+	}
+
+	var sans []string
+	if opts.addr != "" {
+		sans = []string{opts.addr}
+	}
+
+	certPEM, keyPEM, err := capki.IssueCert(caCertPEM, caKeyPEM, opts.name, sans, validity())
+	if err != nil {
+		return fmt.Errorf("failed to issue certificate: %s", err)
+	}
+
+	crtPath := filepath.Join(opts.outDir, "tls.crt")
+	keyPath := filepath.Join(opts.outDir, "tls.key")
+
+	if _, err := os.Stat(crtPath); err == nil {
+		return fmt.Errorf("%s already exists; refusing to overwrite", crtPath)
+	}
+	if _, err := os.Stat(keyPath); err == nil {
+		return fmt.Errorf("%s already exists; refusing to overwrite", keyPath)
+	}
+
+	if err := os.MkdirAll(opts.outDir, 0755); err != nil {
+		return fmt.Errorf("failed to create %s: %s", opts.outDir, err)
+	}
+	if err := os.WriteFile(crtPath, certPEM, 0644); err != nil {
+		return fmt.Errorf("failed to write %s: %s", crtPath, err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+		return fmt.Errorf("failed to write %s: %s", keyPath, err)
+	}
+
+	block, _ := pem.Decode(certPEM)
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse issued certificate: %s", err)
+	}
+	fingerprint := id.New(cert.Raw)
+
+	fmt.Printf("Certificate issued:\n  %s\n  %s\n\nClient ID (for -client-ids): %s\n", crtPath, keyPath, fingerprint)
+	return nil
 }

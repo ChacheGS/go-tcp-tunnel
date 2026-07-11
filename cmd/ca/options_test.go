@@ -5,6 +5,7 @@
 package ca
 
 import (
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -159,4 +160,134 @@ func TestExecuteInit_RefusesToOverwriteExistingCert(t *testing.T) {
 	if !strings.Contains(err.Error(), "already exists") {
 		t.Fatalf("expected 'already exists' error, got: %v", err)
 	}
+}
+
+func TestExecuteIssue_CreatesCertFiles(t *testing.T) {
+	dir := t.TempDir()
+	caDir := dir + "/ca"
+	outDir := dir + "/laptop"
+
+	Command()
+	opts.caDir = caDir
+	opts.command = "init"
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	opts.command = "issue"
+	opts.name = "laptop"
+	opts.outDir = outDir
+	opts.addr = ""
+
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(outDir + "/tls.crt"); err != nil {
+		t.Fatalf("expected tls.crt to be created: %v", err)
+	}
+	if _, err := os.Stat(outDir + "/tls.key"); err != nil {
+		t.Fatalf("expected tls.key to be created: %v", err)
+	}
+}
+
+func TestExecuteIssue_MissingCADirectory(t *testing.T) {
+	dir := t.TempDir()
+
+	Command()
+	opts.caDir = dir + "/nonexistent-ca"
+	opts.command = "issue"
+	opts.name = "laptop"
+	opts.outDir = dir + "/laptop"
+
+	err := Execute()
+	if err == nil {
+		t.Fatal("expected error when CA directory doesn't exist")
+	}
+	if !strings.Contains(err.Error(), "ca init") {
+		t.Fatalf("expected error to point at 'ca init', got: %v", err)
+	}
+}
+
+func TestExecuteIssue_RefusesToOverwriteExistingCert(t *testing.T) {
+	dir := t.TempDir()
+	caDir := dir + "/ca"
+	outDir := dir + "/laptop"
+
+	Command()
+	opts.caDir = caDir
+	opts.command = "init"
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	opts.command = "issue"
+	opts.name = "laptop"
+	opts.outDir = outDir
+	opts.addr = ""
+
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Second issue into the same out-dir must fail rather than overwrite.
+	err := Execute()
+	if err == nil {
+		t.Fatal("expected error when tls.crt already exists")
+	}
+	if !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("expected 'already exists' error, got: %v", err)
+	}
+}
+
+func TestExecuteIssue_PrintsClientIDFingerprint(t *testing.T) {
+	dir := t.TempDir()
+	caDir := dir + "/ca"
+	outDir := dir + "/laptop"
+
+	Command()
+	opts.caDir = caDir
+	opts.command = "init"
+	if err := Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	opts.command = "issue"
+	opts.name = "laptop"
+	opts.outDir = outDir
+	opts.addr = ""
+
+	stdout := captureStdout(t, func() {
+		if err := Execute(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if !strings.Contains(stdout, "Client ID (for -client-ids):") {
+		t.Fatalf("expected output to contain the client ID fingerprint, got: %s", stdout)
+	}
+}
+
+// captureStdout redirects os.Stdout for the duration of fn and returns
+// whatever was written to it.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	original := os.Stdout
+	os.Stdout = w
+	defer func() { os.Stdout = original }()
+
+	fn()
+
+	w.Close()
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
 }
