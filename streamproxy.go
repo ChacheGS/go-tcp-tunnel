@@ -11,8 +11,8 @@ import (
 	"io"
 	"net"
 
-	"github.com/ChacheGS/go-tcp-tunnel/log"
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-stream-tunnel/log"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
 )
 
 // StreamProxy forwards opaque byte streams by dialing a local address and

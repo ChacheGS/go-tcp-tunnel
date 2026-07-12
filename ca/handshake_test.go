@@ -13,7 +13,7 @@ import (
 
 // TestIssuedCertsCompleteRealHandshake proves the actual point of this
 // package: a server cert and a client cert issued by the same CA complete a
-// real mutual-TLS handshake using the same tls.Config shape go-tcp-tunnel's
+// real mutual-TLS handshake using the same tls.Config shape go-stream-tunnel's
 // server.go/client.go already build from -tls-crt/-tls-key/-ca-crt. This is
 // deliberately independent of the tunnel package's own machinery — it only
 // needs crypto/tls, proving the certs work on their own merits.

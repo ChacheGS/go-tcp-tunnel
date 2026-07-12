@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/ChacheGS/go-tcp-tunnel/tunnelmock"
+	"github.com/ChacheGS/go-stream-tunnel/tunnelmock"
 )
 
 func TestFilterLogger_Log(t *testing.T) {

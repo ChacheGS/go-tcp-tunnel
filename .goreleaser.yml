@@ -2,9 +2,9 @@ before:
   hooks:
   - go mod download
 builds:
-- id: go-tcp-tunnel
-  main: ./cmd/go-tcp-tunnel
-  binary: go-tcp-tunnel
+- id: go-stream-tunnel
+  main: ./cmd/go-stream-tunnel
+  binary: go-stream-tunnel
   env:
   - CGO_ENABLED=0
   goos:
@@ -16,8 +16,8 @@ builds:
   - arm64
 archives:
 - builds:
-  - go-tcp-tunnel
-  name_template: "go-tcp-tunnel_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  - go-stream-tunnel
+  name_template: "go-stream-tunnel_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
   wrap_in_directory: false
   format: tar.gz
 release:

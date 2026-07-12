@@ -14,8 +14,8 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	tunnel "github.com/ChacheGS/go-tcp-tunnel"
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
+	tunnel "github.com/ChacheGS/go-stream-tunnel"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
 )
 
 // Default backoff configuration.

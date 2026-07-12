@@ -1,5 +1,5 @@
 REPO_PREFIX ?= ghcr.io/ChacheGS/
-NAME ?= go-tcp-tunnel
+NAME ?= go-stream-tunnel
 VERSION ?= v0.0.1
 CHART_VERSION ?= $(VERSION)
 

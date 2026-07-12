@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package ca provides self-signed CA generation and CA-signed leaf
-// certificate issuance for go-tcp-tunnel's mTLS setup. It performs no file
+// certificate issuance for go-stream-tunnel's mTLS setup. It performs no file
 // I/O; callers (see cmd/ca) are responsible for reading and writing the
 // PEM-encoded bytes this package produces and consumes.
 package ca

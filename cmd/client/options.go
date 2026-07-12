@@ -17,28 +17,28 @@ import (
 	"sort"
 
 	backoff "github.com/cenkalti/backoff/v4"
-	tunnel "github.com/ChacheGS/go-tcp-tunnel"
-	"github.com/ChacheGS/go-tcp-tunnel/id"
-	"github.com/ChacheGS/go-tcp-tunnel/log"
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
+	tunnel "github.com/ChacheGS/go-stream-tunnel"
+	"github.com/ChacheGS/go-stream-tunnel/id"
+	"github.com/ChacheGS/go-stream-tunnel/log"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
 	"gopkg.in/yaml.v2"
 )
 
-const usage1 string = `Usage: go-tcp-tunnel client [OPTIONS] <command> [command args] [...]
+const usage1 string = `Usage: go-stream-tunnel client [OPTIONS] <command> [command args] [...]
 options:
 `
 
 const usage2 string = `
 Commands:
-	go-tcp-tunnel client id                      Show client identifier
-	go-tcp-tunnel client list                    List tunnel names from config file
-	go-tcp-tunnel client start [tunnel] [...]    Start tunnels by name from config file
-	go-tcp-tunnel client start-all               Start all tunnels defined in config file
+	go-stream-tunnel client id                      Show client identifier
+	go-stream-tunnel client list                    List tunnel names from config file
+	go-stream-tunnel client start [tunnel] [...]    Start tunnels by name from config file
+	go-stream-tunnel client start-all               Start all tunnels defined in config file
 
 Examples:
-	go-tcp-tunnel client start www ssh
-	go-tcp-tunnel client -config config.yaml -log-level 2 start ssh
-	go-tcp-tunnel client start-all
+	go-stream-tunnel client start www ssh
+	go-stream-tunnel client -config config.yaml -log-level 2 start ssh
+	go-stream-tunnel client start-all
 
 config.yaml:
 	server_addr: SERVER_IP:5223

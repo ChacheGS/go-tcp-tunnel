@@ -1,16 +1,16 @@
-# Go TCP tunnel
-[![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://pkg.go.dev/github.com/ChacheGS/go-tcp-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/ChacheGS/go-tcp-tunnel)](https://goreportcard.com/report/github.com/ChacheGS/go-tcp-tunnel) [![Container](http://img.shields.io/badge/container-ready-orange.svg)](https://github.com/ChacheGS/go-tcp-tunnel/pkgs/container/go-tcp-tunnel)
+# Go Stream Tunnel
+[![GoDoc](http://img.shields.io/badge/go-documentation-blue.svg)](https://pkg.go.dev/github.com/ChacheGS/go-stream-tunnel) [![Go Report Card](https://goreportcard.com/badge/github.com/ChacheGS/go-stream-tunnel)](https://goreportcard.com/report/github.com/ChacheGS/go-stream-tunnel) [![Container](http://img.shields.io/badge/container-ready-orange.svg)](https://github.com/ChacheGS/go-stream-tunnel/pkgs/container/go-stream-tunnel)
 
-Go TCP tunnel is a TCP reverse tunnel proxy to expose your local backends behind a firewall to the public.
+Go Stream Tunnel is a reverse tunnel proxy to expose your local backends behind a firewall to the public — raw TCP streams or Host-routed HTTP tunnels, over the same mTLS-secured connection.
 The reverse tunnel is based on HTTP/2 with mutual TLS (mTLS). It enables you to share your localhost when you don't have a public IP.
 
 Features:
 
 * Easily expose a local server to the public
-* Secure TCP tunnel, authenticated with mutual TLS
+* Secure tunnel, authenticated with mutual TLS
 * Dynamic listeners on server by client commands
 * Subdomain-routed HTTP tunnels, so each service gets its own public hostname
-* A small CA toolchain (`go-tcp-tunnel ca`) to issue a distinct certificate per client, instead of sharing one cert everywhere
+* A small CA toolchain (`go-stream-tunnel ca`) to issue a distinct certificate per client, instead of sharing one cert everywhere
 
 Common use cases:
 
@@ -23,9 +23,9 @@ Common use cases:
 1. Generate a CA and issue certificates for the server and each client (see [Certificate setup](#certificate-setup) below):
 
    ```sh
-   go-tcp-tunnel ca init
-   go-tcp-tunnel ca -name server -addr tunnel.example.com issue
-   go-tcp-tunnel ca -name laptop issue
+   go-stream-tunnel ca init
+   go-stream-tunnel ca -name server -addr tunnel.example.com issue
+   go-stream-tunnel ca -name laptop issue
    ```
 
 2. Write a `tunnels.yaml` describing what to expose:
@@ -42,13 +42,13 @@ Common use cases:
 3. Start the server on your public host:
 
    ```sh
-   go-tcp-tunnel server -tls-crt server/tls.crt -tls-key server/tls.key -ca-crt ca/ca.crt
+   go-stream-tunnel server -tls-crt server/tls.crt -tls-key server/tls.key -ca-crt ca/ca.crt
    ```
 
 4. Start the client on your machine, pointing at its own cert and the same CA:
 
    ```sh
-   go-tcp-tunnel client -tls-crt laptop/tls.crt -tls-key laptop/tls.key -ca-crt ca/ca.crt -config tunnels.yaml start-all
+   go-stream-tunnel client -tls-crt laptop/tls.crt -tls-key laptop/tls.key -ca-crt ca/ca.crt -config tunnels.yaml start-all
    ```
 
 Your local `localhost:8080` is now reachable at `tunnel.example.com:80`. See [Subdomain-routed HTTP tunnels](#subdomain-routed-http-tunnels) if you'd rather expose services under `https://<name>.tunnel.example.com` behind a reverse proxy.
@@ -151,33 +151,33 @@ once and issue a distinct certificate per role:
 ```sh
 # once, ever — keep ca/ca.key somewhere safe (a secret manager, not source
 # control); ca/ca.crt is not sensitive and is what -ca-crt points at
-go-tcp-tunnel ca init
+go-stream-tunnel ca init
 
 # issue the server's own identity cert — -addr must match what clients will
 # put in their server_addr / dial
-go-tcp-tunnel ca -name server -addr tunnel.example.com issue
+go-stream-tunnel ca -name server -addr tunnel.example.com issue
 
 # issue one cert per client device
-go-tcp-tunnel ca -name laptop issue
-go-tcp-tunnel ca -name desktop issue
+go-stream-tunnel ca -name laptop issue
+go-stream-tunnel ca -name desktop issue
 ```
 
 Each `ca issue` prints the new certificate's client ID — the same fingerprint
-`go-tcp-tunnel client id` would print for that certificate, and the value
+`go-stream-tunnel client id` would print for that certificate, and the value
 you'd put in the server's `-client-ids` flag if you're using an explicit
 allowlist instead of auto-subscribe.
 
 Point the server at its issued cert and the CA:
 
 ```sh
-go-tcp-tunnel server -tls-crt server/tls.crt -tls-key server/tls.key -ca-crt ca/ca.crt
+go-stream-tunnel server -tls-crt server/tls.crt -tls-key server/tls.key -ca-crt ca/ca.crt
 ```
 
 Copy each client's `tls.crt`/`tls.key` to that device, and point the client
 at them plus the same CA cert:
 
 ```sh
-go-tcp-tunnel client -tls-crt laptop/tls.crt -tls-key laptop/tls.key -ca-crt ca/ca.crt -config tunnels.yaml start-all
+go-stream-tunnel client -tls-crt laptop/tls.crt -tls-key laptop/tls.key -ca-crt ca/ca.crt -config tunnels.yaml start-all
 ```
 
 Adding a new client from then on is just another `ca issue` and copying two
@@ -196,7 +196,10 @@ The tunnel is based HTTP/2 for speed and security. There is a single TCP connect
 > original tool on TCP proxying, packaged it as a Docker image, and added a
 > Kubernetes Helm chart (`kubernetes/`). This fork builds on that with
 > subdomain-routed HTTP tunnels and the CA-based certificate issuance
-> described above.
+> described above — and was renamed from `go-tcp-tunnel` to `go-stream-tunnel`
+> to match: it tunnels arbitrary byte streams (TCP, and Host-routed HTTP)
+> rather than being TCP-only, and `go-http-tunnel` was already taken by the
+> project this one differs from.
 >
 > The Kubernetes chart under `kubernetes/` predates this fork's CA tooling
 > and still documents the older shared-self-signed-certificate flow
@@ -211,4 +214,4 @@ Copyright (C) 2022 jlandowner
 
 Copyright (C) 2026 ChacheGS
 
-This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/ChacheGS/go-tcp-tunnel/blob/master/LICENSE) file for details.
+This project is distributed under the AGPL-3 license. See the [LICENSE](https://github.com/ChacheGS/go-stream-tunnel/blob/master/LICENSE) file for details.

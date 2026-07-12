@@ -15,20 +15,20 @@ import (
 	"os"
 	"strings"
 
-	tunnel "github.com/ChacheGS/go-tcp-tunnel"
-	"github.com/ChacheGS/go-tcp-tunnel/id"
-	"github.com/ChacheGS/go-tcp-tunnel/log"
+	tunnel "github.com/ChacheGS/go-stream-tunnel"
+	"github.com/ChacheGS/go-stream-tunnel/id"
+	"github.com/ChacheGS/go-stream-tunnel/log"
 )
 
-const usage1 string = `Usage: go-tcp-tunnel server [OPTIONS]
+const usage1 string = `Usage: go-stream-tunnel server [OPTIONS]
 options:
 `
 
 const usage2 string = `
 Example:
-	go-tcp-tunnel server
-	go-tcp-tunnel server -clients YMBKT3V-ESUTZ2Z-7MRILIJ-T35FHGO-D2DHO7D-FXMGSSR-V4LBSZX-BNDONQ4
-	go-tcp-tunnel server -ca-crt client.crt -tls-crt server.crt -tls-key server.key
+	go-stream-tunnel server
+	go-stream-tunnel server -clients YMBKT3V-ESUTZ2Z-7MRILIJ-T35FHGO-D2DHO7D-FXMGSSR-V4LBSZX-BNDONQ4
+	go-stream-tunnel server -ca-crt client.crt -tls-crt server.crt -tls-key server.key
 
 `
 

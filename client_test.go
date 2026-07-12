@@ -17,9 +17,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/ChacheGS/go-tcp-tunnel/log"
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
-	"github.com/ChacheGS/go-tcp-tunnel/tunnelmock"
+	"github.com/ChacheGS/go-stream-tunnel/log"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
+	"github.com/ChacheGS/go-stream-tunnel/tunnelmock"
 )
 
 func TestClient_Dial(t *testing.T) {

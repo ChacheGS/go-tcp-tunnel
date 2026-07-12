@@ -15,7 +15,7 @@ RUN make build
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /app/bin/go-tcp-tunnel .
+COPY --from=builder /app/bin/go-stream-tunnel .
 USER 65532:65532
 
-ENTRYPOINT ["./go-tcp-tunnel"]
+ENTRYPOINT ["./go-stream-tunnel"]

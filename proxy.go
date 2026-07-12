@@ -9,7 +9,7 @@ package tunnel
 import (
 	"io"
 
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
 )
 
 // ProxyFunc is responsible for forwarding a remote connection to local server

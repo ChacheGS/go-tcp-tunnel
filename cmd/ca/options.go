@@ -13,26 +13,26 @@ import (
 	"path/filepath"
 	"time"
 
-	tunnel "github.com/ChacheGS/go-tcp-tunnel"
-	capki "github.com/ChacheGS/go-tcp-tunnel/ca"
-	"github.com/ChacheGS/go-tcp-tunnel/id"
+	tunnel "github.com/ChacheGS/go-stream-tunnel"
+	capki "github.com/ChacheGS/go-stream-tunnel/ca"
+	"github.com/ChacheGS/go-stream-tunnel/id"
 )
 
-const usage1 string = `Usage: go-tcp-tunnel ca <command> [OPTIONS]
+const usage1 string = `Usage: go-stream-tunnel ca <command> [OPTIONS]
 options:
 `
 
 const usage2 string = `
 Commands:
-	go-tcp-tunnel ca [-ca-dir ./ca] init
-	go-tcp-tunnel ca -name <label> [-addr <host>] [-ca-dir ./ca] [-out-dir ...] issue
+	go-stream-tunnel ca [-ca-dir ./ca] init
+	go-stream-tunnel ca -name <label> [-addr <host>] [-ca-dir ./ca] [-out-dir ...] issue
 
 Note: flags must come before the command (init/issue), not after.
 
 Examples:
-	go-tcp-tunnel ca init
-	go-tcp-tunnel ca -name laptop issue
-	go-tcp-tunnel ca -name server -addr tunnel.example.com issue
+	go-stream-tunnel ca init
+	go-stream-tunnel ca -name laptop issue
+	go-stream-tunnel ca -name server -addr tunnel.example.com issue
 
 `
 
@@ -124,7 +124,7 @@ func executeInit() error {
 		return fmt.Errorf("CA already exists at %s; refusing to overwrite your root of trust", caKeyPath)
 	}
 
-	certPEM, keyPEM, err := capki.GenerateCA("go-tcp-tunnel CA", validity())
+	certPEM, keyPEM, err := capki.GenerateCA("go-stream-tunnel CA", validity())
 	if err != nil {
 		return fmt.Errorf("failed to generate CA: %s", err)
 	}
@@ -146,7 +146,7 @@ func executeIssue() error {
 
 	caCertPEM, err := os.ReadFile(caCrtPath)
 	if err != nil {
-		return fmt.Errorf("failed to read %s: %s (run 'go-tcp-tunnel ca init' first)", caCrtPath, err)
+		return fmt.Errorf("failed to read %s: %s (run 'go-stream-tunnel ca init' first)", caCrtPath, err)
 	}
 
 	if err := tunnel.CheckPrivateKeyPermissions(caKeyPath); err != nil {
@@ -154,7 +154,7 @@ func executeIssue() error {
 	}
 	caKeyPEM, err := os.ReadFile(caKeyPath)
 	if err != nil {
-		return fmt.Errorf("failed to read %s: %s (run 'go-tcp-tunnel ca init' first)", caKeyPath, err)
+		return fmt.Errorf("failed to read %s: %s (run 'go-stream-tunnel ca init' first)", caKeyPath, err)
 	}
 
 	var sans []string

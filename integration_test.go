@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	tunnel "github.com/ChacheGS/go-tcp-tunnel"
-	"github.com/ChacheGS/go-tcp-tunnel/log"
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
+	tunnel "github.com/ChacheGS/go-stream-tunnel"
+	"github.com/ChacheGS/go-stream-tunnel/log"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
 	"golang.org/x/net/websocket"
 )
 

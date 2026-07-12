@@ -1,4 +1,4 @@
-module github.com/ChacheGS/go-tcp-tunnel
+module github.com/ChacheGS/go-stream-tunnel
 
 go 1.26
 

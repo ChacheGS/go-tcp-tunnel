@@ -13,9 +13,9 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/ChacheGS/go-tcp-tunnel/cmd/ca"
-	"github.com/ChacheGS/go-tcp-tunnel/cmd/client"
-	"github.com/ChacheGS/go-tcp-tunnel/cmd/server"
+	"github.com/ChacheGS/go-stream-tunnel/cmd/ca"
+	"github.com/ChacheGS/go-stream-tunnel/cmd/client"
+	"github.com/ChacheGS/go-stream-tunnel/cmd/server"
 )
 
 const banner = `
@@ -28,15 +28,15 @@ const banner = `
 `
 const version string = "v0.0.1"
 
-const usage1 string = `Usage: go-tcp-tunnel server|client|ca [OPTIONS]
+const usage1 string = `Usage: go-stream-tunnel server|client|ca [OPTIONS]
 Options:
 `
 
 const usage2 string = `
 Commands:
-	go-tcp-tunnel server --help
-	go-tcp-tunnel client --help
-	go-tcp-tunnel ca --help
+	go-stream-tunnel server --help
+	go-stream-tunnel client --help
+	go-stream-tunnel ca --help
 
 Author:
 	ChacheGS(https://github.com/ChacheGS)
@@ -48,7 +48,7 @@ Author:
 	written by M. Matczuk (mmatczuk@gmail.com)
 
 Bugs:
-	Submit bugs to https://github.com/ChacheGS/go-tcp-tunnel/issues
+	Submit bugs to https://github.com/ChacheGS/go-stream-tunnel/issues
 
 `
 

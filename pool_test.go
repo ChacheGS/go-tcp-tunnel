@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ChacheGS/go-tcp-tunnel/id"
+	"github.com/ChacheGS/go-stream-tunnel/id"
 	"golang.org/x/net/http2"
 )
 

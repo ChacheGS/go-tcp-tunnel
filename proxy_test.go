@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
 )
 
 func TestProxy_TCP(t *testing.T) {

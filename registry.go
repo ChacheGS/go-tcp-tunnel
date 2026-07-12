@@ -11,8 +11,8 @@ import (
 	"net"
 	"sync"
 
-	"github.com/ChacheGS/go-tcp-tunnel/id"
-	"github.com/ChacheGS/go-tcp-tunnel/log"
+	"github.com/ChacheGS/go-stream-tunnel/id"
+	"github.com/ChacheGS/go-stream-tunnel/log"
 )
 
 // RegistryItem holds information about hosts and listeners associated with a

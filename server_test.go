@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ChacheGS/go-tcp-tunnel/id"
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-stream-tunnel/id"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
 )
 
 // testTLSConfig creates a CA + server + client cert setup for mTLS testing.

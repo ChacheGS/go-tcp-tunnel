@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ChacheGS/go-tcp-tunnel/log"
-	"github.com/ChacheGS/go-tcp-tunnel/proto"
+	"github.com/ChacheGS/go-stream-tunnel/log"
+	"github.com/ChacheGS/go-stream-tunnel/proto"
 )
 
 func TestMain(m *testing.M) {
