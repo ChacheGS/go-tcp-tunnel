@@ -79,6 +79,33 @@ func TestCompleteArgs_InitRejectsExtraArgs(t *testing.T) {
 	}
 }
 
+func TestCompleteArgs_InitRejectsOutDir(t *testing.T) {
+	cmd := Command()
+	cmd.Parse([]string{"-out-dir", "somewhere-else", "init"})
+
+	if err := CompleteArgs(cmd); err == nil {
+		t.Fatal("expected error for init with -out-dir, which init does not use")
+	}
+}
+
+func TestCompleteArgs_InitRejectsName(t *testing.T) {
+	cmd := Command()
+	cmd.Parse([]string{"-name", "laptop", "init"})
+
+	if err := CompleteArgs(cmd); err == nil {
+		t.Fatal("expected error for init with -name, which init does not use")
+	}
+}
+
+func TestCompleteArgs_InitRejectsAddr(t *testing.T) {
+	cmd := Command()
+	cmd.Parse([]string{"-addr", "tunnel.example.com", "init"})
+
+	if err := CompleteArgs(cmd); err == nil {
+		t.Fatal("expected error for init with -addr, which init does not use")
+	}
+}
+
 func TestCompleteArgs_IssueRequiresName(t *testing.T) {
 	cmd := Command()
 	cmd.Parse([]string{"issue"})

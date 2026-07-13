@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tunnel "github.com/ChacheGS/go-stream-tunnel"
@@ -68,6 +69,20 @@ func CompleteArgs(fs *flag.FlagSet) error {
 	case "init":
 		if len(fs.Args()) > 1 {
 			return fmt.Errorf("init takes no arguments")
+		}
+		// -name/-addr/-out-dir only apply to issue; init always writes the
+		// CA to -ca-dir. Silently accepting and ignoring them would leave
+		// someone who passed -out-dir expecting it to control where init
+		// writes with no indication it did nothing.
+		var badFlags []string
+		fs.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "name", "addr", "out-dir":
+				badFlags = append(badFlags, "-"+f.Name)
+			}
+		})
+		if len(badFlags) > 0 {
+			return fmt.Errorf("init does not use %s; init only takes -ca-dir", strings.Join(badFlags, ", "))
 		}
 	case "issue":
 		if opts.name == "" {
