@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/ChacheGS/go-stream-tunnel/cmd/ca"
 	"github.com/ChacheGS/go-stream-tunnel/cmd/client"
@@ -78,7 +79,14 @@ func main() {
 	}
 	fmt.Print(banner)
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	// SIGTERM matters as much as SIGINT here: this binary is almost always
+	// PID 1 inside a container (see Dockerfile -- no init/shell wrapper),
+	// and the kernel does not apply a default terminate action to PID 1
+	// for signals it hasn't explicitly registered a handler for. Without
+	// this, `docker stop` (which sends SIGTERM first) would be silently
+	// ignored, forcing Docker to wait out its full stop grace period and
+	// fall back to SIGKILL every time before the container actually exits.
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	if flag.NArg() > 0 {
