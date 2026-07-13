@@ -91,8 +91,12 @@ func main() {
 				fatal("%v", err)
 			}
 
+			// Execute failures are runtime errors (dial failed, cert
+			// rejected, duplicate connection, ...), not usage mistakes --
+			// printing the full flag/help block here just buries the
+			// actual error under noise that looks like "you typed this
+			// wrong" when you didn't.
 			if err := client.Execute(ctx); err != nil {
-				clientCmd.Usage()
 				fatal("%v", err)
 			}
 
@@ -100,7 +104,6 @@ func main() {
 			serverCmd.Parse(args[1:])
 
 			if err := server.Execute(ctx); err != nil {
-				serverCmd.Usage()
 				fatal("ERROR: %v", err)
 			}
 			return
@@ -113,7 +116,6 @@ func main() {
 			}
 
 			if err := ca.Execute(); err != nil {
-				caCmd.Usage()
 				fatal("ERROR: %v", err)
 			}
 			return
