@@ -132,6 +132,17 @@ func (c *Client) Start(ctx context.Context) error {
 			"action", "disconnected",
 		)
 
+		// A cancelled ctx means this disconnect was requested (Stop() was
+		// called by the goroutine above), not a transient network hiccup.
+		// Without this check the loop can't tell the difference and just
+		// redials, so Ctrl-C/SIGTERM would only ever actually stop the
+		// client if a subsequent reconnect happened to fail on its own.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		c.connMu.Lock()
 		now := time.Now()
 		err = c.serverErr

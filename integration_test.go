@@ -174,6 +174,61 @@ func TestIntegration(t *testing.T) {
 	wg.Wait()
 }
 
+// TestClient_StartReturnsPromptlyOnContextCancellation is a regression test
+// for a real "docker stop"/Ctrl-C bug: Start()'s reconnect loop only checked
+// ctx.Done() in the "dial failed" branch, not after ServeConn returns from a
+// connection Stop() itself closed. That meant cancelling ctx looked
+// identical to a transient network hiccup to the loop, so it just redialed
+// and reconnected -- the client would only actually stop once a reconnect
+// attempt eventually failed on its own, not because it was asked to.
+func TestClient_StartReturnsPromptlyOnContextCancellation(t *testing.T) {
+	tcp := makeEcho(t)
+	defer tcp.Close()
+
+	s := makeTunnelServer(t)
+	defer s.Stop()
+
+	tcpLocalAddr := freeAddr()
+	tcpProxy := tunnel.NewMultiStreamProxy(map[string]string{
+		port(tcpLocalAddr): tcp.Addr().String(),
+	}, log.NewStdLogger())
+
+	c, err := tunnel.NewClient(&tunnel.ClientConfig{
+		ServerAddr:      s.Addr(),
+		TLSClientConfig: tlsConfig(),
+		Tunnels: map[string]*proto.Tunnel{
+			proto.TCP: {Protocol: proto.TCP, Addr: tcpLocalAddr.String()},
+		},
+		Proxy: tunnel.Proxy(tunnel.ProxyFuncs{
+			Stream: tcpProxy.Proxy,
+		}),
+		Logger: log.NewStdLogger(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- c.Start(ctx)
+	}()
+
+	waitConnected(t, c, 5*time.Second)
+
+	cancel()
+
+	select {
+	case <-done:
+		// Start returned -- correct, regardless of what error (if any) it
+		// carries; the point is that it returned at all instead of
+		// silently reconnecting forever.
+	case <-time.After(3 * time.Second):
+		t.Fatal("Start did not return within 3s of context cancellation -- it's reconnecting instead of stopping")
+	}
+}
+
 func testTCP(t testing.TB, addr net.Addr, payload []byte, repeat uint) {
 	conn, err := net.Dial("tcp", addr.String())
 	if err != nil {
