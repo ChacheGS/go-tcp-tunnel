@@ -12,5 +12,5 @@ package log
 // particular, any implementation of Logger that appends to keyvals or
 // modifies any of its elements must make a copy first.
 type Logger interface {
-	Log(keyvals ...interface{}) error
+	Log(keyvals ...any) error
 }

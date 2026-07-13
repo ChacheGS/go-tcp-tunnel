@@ -20,12 +20,12 @@ import (
 )
 
 const banner = `
-   ______       ________________     __                         __
-  / ____/___   /_  __/ ____/ __ \   / /___  ______  ____  ___  / /
- / / __/ __ \   / / / /   / /_/ /  / __/ / / / __ \/ __ \/ _ \/ /
-/ /_/ / /_/ /  / / / /___/ ____/  / /_/ /_/ / / / / / / /  __/ /
-\____/\____/  /_/  \____/_/       \__/\__,_/_/ /_/_/ /_/\___/_/
-
+   ______         _____ __                               __                         __
+  / ____/___     / ___// /_________  ____ _____ ___     / /___  ______  ____  ___  / /
+ / / __/ __ \    \__ \/ __/ ___/ _ \/ __ \/ __ \__ \   / __/ / / / __ \/ __ \/ _ \/ / 
+/ /_/ / /_/ /   ___/ / /_/ /  /  __/ /_/ / / / / / /  / /_/ /_/ / / / / / / /  __/ /  
+\____/\____/   /____/\__/_/   \___/\__,_/_/ /_/ /_/   \__/\__,_/_/ /_/_/ /_/\___/_/   
+                                                                                      
 `
 const version string = "v1.0.4"
 
@@ -78,6 +78,7 @@ func main() {
 		return
 	}
 	fmt.Print(banner)
+	fmt.Printf("%s\n\n", version)
 
 	// SIGTERM matters as much as SIGINT here: this binary is almost always
 	// PID 1 inside a container (see Dockerfile -- no init/shell wrapper),
@@ -134,7 +135,7 @@ func main() {
 	}
 }
 
-func fatal(format string, a ...interface{}) {
+func fatal(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	fmt.Fprint(os.Stderr, "\n")
 	os.Exit(1)

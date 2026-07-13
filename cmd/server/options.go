@@ -98,7 +98,7 @@ func Execute(ctx context.Context) error {
 	}
 
 	if !autoSubscribe {
-		for _, c := range strings.Split(opts.clientIDs, ",") {
+		for c := range strings.SplitSeq(opts.clientIDs, ",") {
 			if c == "" {
 				return fmt.Errorf("empty client id")
 			}

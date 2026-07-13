@@ -15,7 +15,7 @@ type stdLogger struct{}
 // NewStdLogger returns logger based on standard "log" package.
 func NewStdLogger() Logger { return stdLogger{} }
 
-func (p stdLogger) Log(keyvals ...interface{}) error {
+func (p stdLogger) Log(keyvals ...any) error {
 	log.Println(keyvals...)
 	return nil
 }

@@ -21,7 +21,7 @@ func NewFilterLogger(logger Logger, level int) Logger {
 	}
 }
 
-func (p filterLogger) Log(keyvals ...interface{}) error {
+func (p filterLogger) Log(keyvals ...any) error {
 	for i := 0; i < len(keyvals); i += 2 {
 		k := keyvals[i]
 		s, ok := k.(string)

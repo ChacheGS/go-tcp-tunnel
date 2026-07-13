@@ -311,7 +311,7 @@ func (c *Client) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-func (c *Client) handleHandshakeError(w http.ResponseWriter, r *http.Request) {
+func (c *Client) handleHandshakeError(_ http.ResponseWriter, r *http.Request) {
 	err := errors.New(r.Header.Get(proto.HeaderError))
 
 	c.logger.Log(

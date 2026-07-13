@@ -242,7 +242,8 @@ func tlsConfig(config *ClientConfig) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	if ok := roots.AppendCertsFromPEM(rootPEM); !ok {
+	loaded := roots.AppendCertsFromPEM(rootPEM)
+	if !loaded {
 		return nil, fmt.Errorf("failed to parse CA certificate PEM")
 	}
 
@@ -254,7 +255,7 @@ func tlsConfig(config *ClientConfig) (*tls.Config, error) {
 	return &tls.Config{
 		ServerName:         host,
 		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: len(roots.Subjects()) == 0,
+		InsecureSkipVerify: !loaded,
 		RootCAs:            roots,
 	}, nil
 }
