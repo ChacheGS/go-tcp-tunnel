@@ -265,6 +265,50 @@ tunnels:
 	}
 }
 
+func TestLoadClientConfigFromFile_HTTPTunnel_SubdomainDefaultsToName(t *testing.T) {
+	t.Parallel()
+
+	content := `
+server_addr: 192.168.1.1:5223
+tunnels:
+  myapp:
+    proto: http
+    addr: localhost:8080
+`
+	f := writeTempFile(t, content)
+
+	c, err := loadClientConfigFromFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	myapp := c.Tunnels["myapp"]
+	if myapp.Subdomain != "myapp" {
+		t.Fatalf("expected subdomain to default to tunnel name myapp, got %s", myapp.Subdomain)
+	}
+}
+
+func TestLoadClientConfigFromFile_HTTPTunnel_InvalidNameNoSubdomainOverride(t *testing.T) {
+	t.Parallel()
+
+	content := `
+server_addr: 192.168.1.1:5223
+tunnels:
+  My_App:
+    proto: http
+    addr: localhost:8080
+`
+	f := writeTempFile(t, content)
+
+	_, err := loadClientConfigFromFile(f)
+	if err == nil {
+		t.Fatal("expected error: tunnel name My_App is not a valid DNS label and no subdomain override was given")
+	}
+	if !strings.Contains(err.Error(), "My_App") || !strings.Contains(err.Error(), "subdomain") {
+		t.Fatalf("expected error mentioning the invalid tunnel name and subdomain, got: %v", err)
+	}
+}
+
 func TestLoadClientConfigFromFile_DuplicateSubdomainRejected(t *testing.T) {
 	t.Parallel()
 
@@ -299,40 +343,55 @@ func TestCompleteHTTP(t *testing.T) {
 
 	tests := []struct {
 		name        string
+		tunnelName  string
 		tunnel      Tunnel
 		wantErr     bool
 		errContains string
+		wantSubdom  string
 	}{
 		{
-			name:   "valid",
-			tunnel: Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "myapp"},
+			name:       "valid",
+			tunnelName: "irrelevant",
+			tunnel:     Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "myapp"},
+			wantSubdom: "myapp",
 		},
 		{
 			name:        "missing addr",
+			tunnelName:  "myapp",
 			tunnel:      Tunnel{Protocol: "http", Subdomain: "myapp"},
 			wantErr:     true,
 			errContains: "addr: missing",
 		},
 		{
-			name:        "missing subdomain",
+			name:       "subdomain defaults to tunnel name when omitted",
+			tunnelName: "myapp",
+			tunnel:     Tunnel{Protocol: "http", Addr: "localhost:8080"},
+			wantSubdom: "myapp",
+		},
+		{
+			name:        "invalid tunnel name with no subdomain override",
+			tunnelName:  "My_App",
 			tunnel:      Tunnel{Protocol: "http", Addr: "localhost:8080"},
 			wantErr:     true,
-			errContains: "subdomain: missing",
+			errContains: "not a valid DNS label",
 		},
 		{
 			name:        "remote_addr not allowed",
+			tunnelName:  "myapp",
 			tunnel:      Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "myapp", RemoteAddr: "0.0.0.0:80"},
 			wantErr:     true,
 			errContains: "remote_addr: not supported",
 		},
 		{
 			name:        "subdomain with dot rejected",
+			tunnelName:  "myapp",
 			tunnel:      Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "my.app"},
 			wantErr:     true,
 			errContains: "not a valid DNS label",
 		},
 		{
 			name:        "uppercase subdomain rejected",
+			tunnelName:  "myapp",
 			tunnel:      Tunnel{Protocol: "http", Addr: "localhost:8080", Subdomain: "MyApp"},
 			wantErr:     true,
 			errContains: "not a valid DNS label",
@@ -342,7 +401,7 @@ func TestCompleteHTTP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tun := tt.tunnel
-			err := completeHTTP(&tun)
+			err := completeHTTP(&tun, tt.tunnelName)
 
 			if tt.wantErr {
 				if err == nil {
@@ -355,6 +414,9 @@ func TestCompleteHTTP(t *testing.T) {
 			}
 			if err != nil {
 				t.Fatal(err)
+			}
+			if tun.Subdomain != tt.wantSubdom {
+				t.Fatalf("expected subdomain %q, got %q", tt.wantSubdom, tun.Subdomain)
 			}
 		})
 	}

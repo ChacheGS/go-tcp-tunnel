@@ -40,7 +40,8 @@ type Tunnel struct {
 	Addr       string `yaml:"addr,omitempty"`
 	RemoteAddr string `yaml:"remote_addr,omitempty"`
 	// Subdomain is used by proto "http" tunnels: the tunnel becomes
-	// reachable at <Subdomain>.<server's base domain>.
+	// reachable at <Subdomain>.<server's base domain>. Defaults to the
+	// tunnel's own key in the tunnels map if omitted.
 	Subdomain string `yaml:"subdomain,omitempty"`
 }
 
@@ -85,7 +86,7 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 				return nil, fmt.Errorf("%s %s", name, err)
 			}
 		case proto.HTTP:
-			if err := completeHTTP(t); err != nil {
+			if err := completeHTTP(t, name); err != nil {
 				return nil, fmt.Errorf("%s %s", name, err)
 			}
 			// Two tunnels sharing a subdomain would silently overwrite
@@ -126,7 +127,12 @@ func completeTCP(t *Tunnel) error {
 	return nil
 }
 
-func completeHTTP(t *Tunnel) error {
+// completeHTTP validates and fills in defaults for an http tunnel. name is
+// the tunnel's own key in the tunnels map, used as the default subdomain
+// when one isn't given explicitly, so a config doesn't have to repeat the
+// same name twice (tunnels: myapp: proto: http ... rather than also writing
+// subdomain: myapp).
+func completeHTTP(t *Tunnel, name string) error {
 	var err error
 	if t.Addr == "" {
 		return fmt.Errorf("addr: missing")
@@ -135,10 +141,15 @@ func completeHTTP(t *Tunnel) error {
 		return fmt.Errorf("addr: %s", err)
 	}
 
+	defaulted := false
 	if t.Subdomain == "" {
-		return fmt.Errorf("subdomain: missing")
+		t.Subdomain = name
+		defaulted = true
 	}
 	if !proto.ValidSubdomainLabel(t.Subdomain) {
+		if defaulted {
+			return fmt.Errorf("subdomain: tunnel name %q is not a valid DNS label (lowercase letters, digits, hyphens only, no leading/trailing hyphen); add an explicit subdomain field to override it", t.Subdomain)
+		}
 		return fmt.Errorf("subdomain: %q is not a valid DNS label (lowercase letters, digits, hyphens only, no leading/trailing hyphen)", t.Subdomain)
 	}
 	if t.RemoteAddr != "" {

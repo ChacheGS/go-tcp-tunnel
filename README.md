@@ -110,8 +110,11 @@ tunnels:
   myapp:
     proto: http
     addr: localhost:8080
-    subdomain: myapp
 ```
+
+`subdomain` defaults to the tunnel's own name (`myapp` above) if omitted, so
+you don't have to repeat it — set it explicitly only if you want the public
+subdomain to differ from the tunnel's name in `tunnels.yaml`.
 
 This requires the server to be started with `-base-domain tunnel.example.com`
 (and `-http-addr`, default `127.0.0.1:9000`) and a reverse proxy in front of

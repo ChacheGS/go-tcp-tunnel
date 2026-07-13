@@ -51,6 +51,9 @@ config.yaml:
 	    proto: tcp
 	    addr: 192.168.0.5:80
 	    remote_addr: 0.0.0.0:80
+	  myapp:
+	    proto: http
+	    addr: localhost:8080
 
 `
 
