@@ -483,3 +483,167 @@ func tlsConfig() *tls.Config {
 	}
 	return c
 }
+
+// TestIntegration_HTTPSubdomainTunnel_CrossTenantIsolation proves the
+// documented caveat in the README's "Subdomain-routed HTTP tunnels" section:
+// the server decides which tunnel a connection belongs to exactly once, by
+// peeking the Host header at accept time, then relays everything else on
+// that connection byte-for-byte with no further awareness of HTTP framing.
+// A reverse proxy that reuses one backend connection across requests for
+// *different* subdomains would silently leak the second request to the
+// first request's tunnel -- this test demonstrates that leak actually
+// happening when a connection is reused across hosts, and confirms it does
+// not happen when each request gets its own connection (the documented
+// mitigation, e.g. Caddy's keepalive -1s or Traefik's
+// maxIdleConnsPerHost: -1).
+func TestIntegration_HTTPSubdomainTunnel_CrossTenantIsolation(t *testing.T) {
+	// Two independent local backends, each answering with its own identity
+	// regardless of what Host header a request claims -- this is what lets
+	// the test tell "which backend actually handled this" apart from "what
+	// Host did the request claim", which is the whole point: a leaked
+	// request still carries the victim's Host header, it's just processed
+	// by the wrong tenant's backend.
+	backendA := serveIdentity(t, "A")
+	backendB := serveIdentity(t, "B")
+
+	s, err := tunnel.NewServer(&tunnel.ServerConfig{
+		Addr:          ":0",
+		AutoSubscribe: true,
+		TLSConfig:     tlsConfig(),
+		Logger:        log.NewStdLogger(),
+		BaseDomain:    "tunnel.example.com",
+		HTTPAddr:      "127.0.0.1:0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go s.Start(context.Background())
+	defer s.Stop()
+
+	time.Sleep(50 * time.Millisecond)
+
+	tcpProxy := tunnel.NewMultiStreamProxy(map[string]string{
+		"svca": backendA,
+		"svcb": backendB,
+	}, log.NewStdLogger())
+
+	c, err := tunnel.NewClient(&tunnel.ClientConfig{
+		ServerAddr:      s.Addr(),
+		TLSClientConfig: tlsConfig(),
+		Tunnels: map[string]*proto.Tunnel{
+			"svca": {Protocol: proto.HTTP, Host: "svca"},
+			"svcb": {Protocol: proto.HTTP, Host: "svcb"},
+		},
+		Proxy: tunnel.Proxy(tunnel.ProxyFuncs{
+			Stream: tcpProxy.Proxy,
+		}),
+		Logger: log.NewStdLogger(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go c.Start(ctx)
+
+	waitConnected(t, c, 5*time.Second)
+
+	t.Run("separate connections stay isolated", func(t *testing.T) {
+		gotA := requestOverFreshConn(t, s.HTTPAddr(), "svca.tunnel.example.com")
+		if gotA != "A" {
+			t.Fatalf("expected svca's own connection to reach backend A, got %q", gotA)
+		}
+
+		gotB := requestOverFreshConn(t, s.HTTPAddr(), "svcb.tunnel.example.com")
+		if gotB != "B" {
+			t.Fatalf("expected svcb's own connection to reach backend B, got %q", gotB)
+		}
+	})
+
+	t.Run("reusing one connection across hosts leaks to the first tunnel", func(t *testing.T) {
+		conn, err := net.Dial("tcp", s.HTTPAddr())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer conn.Close()
+		conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+		first := doRequest(t, conn, "svca.tunnel.example.com")
+		if first != "A" {
+			t.Fatalf("expected first request on the connection to reach backend A, got %q", first)
+		}
+
+		// Second request, same connection, different Host -- exactly what
+		// a reverse proxy's backend connection pool would do if it isn't
+		// configured to disable keep-alive reuse across hosts. The server
+		// already committed this connection to backend A at accept time
+		// and never looks at the Host header again, so this is expected
+		// to come back as "A", not "B": that mismatch (a request claiming
+		// svcb answered by tenant A's backend) is the leak.
+		second := doRequest(t, conn, "svcb.tunnel.example.com")
+		if second != "A" {
+			t.Fatalf("expected the reused connection to demonstrate the documented leak (still routed to backend A), got %q -- if this now reads B, the server's routing model changed and the README's caveat needs revisiting", second)
+		}
+	})
+}
+
+// serveIdentity starts a local HTTP server that always responds with body,
+// regardless of the request's Host header, and returns its address.
+func serveIdentity(t *testing.T, body string) string {
+	t.Helper()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(body))
+	})
+	go http.Serve(ln, mux)
+
+	return ln.Addr().String()
+}
+
+// requestOverFreshConn dials a new connection to httpAddr, issues a single
+// request with the given host, and returns the response body.
+func requestOverFreshConn(t *testing.T, httpAddr, host string) string {
+	t.Helper()
+
+	conn, err := net.Dial("tcp", httpAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	return doRequest(t, conn, host)
+}
+
+// doRequest writes a GET request with the given Host over conn and returns
+// the response body, leaving conn open for a possible next request.
+func doRequest(t *testing.T, conn net.Conn, host string) string {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, "http://"+host+"/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := req.Write(conn); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(body)
+}
