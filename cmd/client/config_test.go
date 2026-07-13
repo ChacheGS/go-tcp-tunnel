@@ -69,6 +69,91 @@ tunnels:
 	}
 }
 
+func TestLoadClientConfigFromFile_TLSFieldsRelativeToConfigDir(t *testing.T) {
+	t.Parallel()
+
+	content := `
+server_addr: 192.168.1.1:5223
+tls_crt: certs/laptop.crt
+tls_key: certs/laptop.key
+ca_crt: certs/ca.crt
+tunnels:
+  web:
+    proto: tcp
+    addr: localhost:8080
+`
+	f := writeTempFile(t, content)
+	dir := filepath.Dir(f)
+
+	c, err := loadClientConfigFromFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want := filepath.Join(dir, "certs/laptop.crt"); c.TLSCrt != want {
+		t.Fatalf("expected tls_crt %s, got %s", want, c.TLSCrt)
+	}
+	if want := filepath.Join(dir, "certs/laptop.key"); c.TLSKey != want {
+		t.Fatalf("expected tls_key %s, got %s", want, c.TLSKey)
+	}
+	if want := filepath.Join(dir, "certs/ca.crt"); c.CACrt != want {
+		t.Fatalf("expected ca_crt %s, got %s", want, c.CACrt)
+	}
+}
+
+func TestLoadClientConfigFromFile_TLSFieldsAbsoluteUnchanged(t *testing.T) {
+	t.Parallel()
+
+	content := `
+server_addr: 192.168.1.1:5223
+tls_crt: /etc/goku/tls.crt
+tls_key: /etc/goku/tls.key
+ca_crt: /etc/goku/ca.crt
+tunnels:
+  web:
+    proto: tcp
+    addr: localhost:8080
+`
+	f := writeTempFile(t, content)
+
+	c, err := loadClientConfigFromFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if c.TLSCrt != "/etc/goku/tls.crt" {
+		t.Fatalf("expected absolute tls_crt unchanged, got %s", c.TLSCrt)
+	}
+	if c.TLSKey != "/etc/goku/tls.key" {
+		t.Fatalf("expected absolute tls_key unchanged, got %s", c.TLSKey)
+	}
+	if c.CACrt != "/etc/goku/ca.crt" {
+		t.Fatalf("expected absolute ca_crt unchanged, got %s", c.CACrt)
+	}
+}
+
+func TestLoadClientConfigFromFile_TLSFieldsOmitted(t *testing.T) {
+	t.Parallel()
+
+	content := `
+server_addr: 192.168.1.1:5223
+tunnels:
+  web:
+    proto: tcp
+    addr: localhost:8080
+`
+	f := writeTempFile(t, content)
+
+	c, err := loadClientConfigFromFile(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if c.TLSCrt != "" || c.TLSKey != "" || c.CACrt != "" {
+		t.Fatalf("expected empty TLS fields when omitted, got crt=%q key=%q ca=%q", c.TLSCrt, c.TLSKey, c.CACrt)
+	}
+}
+
 func TestLoadClientConfigFromFile_Defaults(t *testing.T) {
 	t.Parallel()
 
@@ -185,20 +270,20 @@ func TestCompleteTCP(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:    "full config",
-			tunnel:  Tunnel{Protocol: "tcp", Addr: "localhost:8080", RemoteAddr: "0.0.0.0:80"},
+			name:       "full config",
+			tunnel:     Tunnel{Protocol: "tcp", Addr: "localhost:8080", RemoteAddr: "0.0.0.0:80"},
 			wantAddr:   "localhost:8080",
 			wantRemote: "0.0.0.0:80",
 		},
 		{
-			name:    "auto remote_addr from addr port",
-			tunnel:  Tunnel{Protocol: "tcp", Addr: "localhost:8080"},
+			name:       "auto remote_addr from addr port",
+			tunnel:     Tunnel{Protocol: "tcp", Addr: "localhost:8080"},
 			wantAddr:   "localhost:8080",
 			wantRemote: "0.0.0.0:8080",
 		},
 		{
-			name:    "port-only addr normalization",
-			tunnel:  Tunnel{Protocol: "tcp", Addr: ":9090", RemoteAddr: "0.0.0.0:9090"},
+			name:       "port-only addr normalization",
+			tunnel:     Tunnel{Protocol: "tcp", Addr: ":9090", RemoteAddr: "0.0.0.0:9090"},
 			wantAddr:   "127.0.0.1:9090",
 			wantRemote: "0.0.0.0:9090",
 		},

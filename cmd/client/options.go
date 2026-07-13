@@ -16,11 +16,11 @@ import (
 	"os"
 	"sort"
 
-	backoff "github.com/cenkalti/backoff/v4"
 	tunnel "github.com/ChacheGS/go-stream-tunnel"
 	"github.com/ChacheGS/go-stream-tunnel/id"
 	"github.com/ChacheGS/go-stream-tunnel/log"
 	"github.com/ChacheGS/go-stream-tunnel/proto"
+	backoff "github.com/cenkalti/backoff/v4"
 	"gopkg.in/yaml.v2"
 )
 
@@ -58,13 +58,16 @@ config.yaml:
 `
 
 type options struct {
-	config   string
-	tlsCrt   string
-	tlsKey   string
-	rootCA   string
-	command  string
-	args     []string
-	logLevel int
+	config    string
+	tlsCrt    string
+	tlsKey    string
+	rootCA    string
+	tlsCrtSet bool
+	tlsKeySet bool
+	rootCASet bool
+	command   string
+	args      []string
+	logLevel  int
 }
 
 var opts options
@@ -77,16 +80,42 @@ func Command() *flag.FlagSet {
 		fmt.Fprint(os.Stderr, usage2)
 	}
 
+	opts.tlsCrtSet = false
+	opts.tlsKeySet = false
+	opts.rootCASet = false
+
 	cmd.StringVar(&opts.config, "config", "tunnel.yml", "Path to tunnel configuration file")
-	cmd.StringVar(&opts.tlsCrt, "tls-crt", "tls.crt", "Path to a TLS certificate file")
-	cmd.StringVar(&opts.tlsKey, "tls-key", "tls.key", "Path to a TLS key file")
-	cmd.StringVar(&opts.rootCA, "ca-crt", "tls.crt", "Path to the trusted certificate chain used for server certificate authentication")
+	cmd.StringVar(&opts.tlsCrt, "tls-crt", "tls.crt", "Path to a TLS certificate file; falls back to tls_crt in the config file if not set")
+	cmd.StringVar(&opts.tlsKey, "tls-key", "tls.key", "Path to a TLS key file; falls back to tls_key in the config file if not set")
+	cmd.StringVar(&opts.rootCA, "ca-crt", "ca.crt", "Path to the trusted certificate chain used for server certificate authentication; falls back to ca_crt in the config file if not set")
 	cmd.IntVar(&opts.logLevel, "log-level", 1, "Level of messages to log, 0-3")
 
 	return cmd
 }
 
+// resolvePath returns flagVal if the corresponding flag was passed
+// explicitly on the command line (flagSet), otherwise configVal if the
+// config file set one, otherwise flagVal -- which still holds the flag's
+// own built-in default when neither of the above applies.
+func resolvePath(flagVal string, flagSet bool, configVal string) string {
+	if flagSet || configVal == "" {
+		return flagVal
+	}
+	return configVal
+}
+
 func CompleteArgs(fs *flag.FlagSet) error {
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "tls-crt":
+			opts.tlsCrtSet = true
+		case "tls-key":
+			opts.tlsKeySet = true
+		case "ca-crt":
+			opts.rootCASet = true
+		}
+	})
+
 	opts.command = fs.Arg(0)
 	switch opts.command {
 	case "id", "list":
@@ -118,6 +147,10 @@ func Execute(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("configuration error: %s", err)
 	}
+
+	opts.tlsCrt = resolvePath(opts.tlsCrt, opts.tlsCrtSet, config.TLSCrt)
+	opts.tlsKey = resolvePath(opts.tlsKey, opts.tlsKeySet, config.TLSKey)
+	opts.rootCA = resolvePath(opts.rootCA, opts.rootCASet, config.CACrt)
 
 	switch opts.command {
 	case "id":

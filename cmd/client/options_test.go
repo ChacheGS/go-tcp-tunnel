@@ -99,6 +99,105 @@ func TestCompleteArgs(t *testing.T) {
 	}
 }
 
+func TestResolvePath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		flagVal   string
+		flagSet   bool
+		configVal string
+		want      string
+	}{
+		{
+			name:      "flag explicitly set wins over config value",
+			flagVal:   "flag.crt",
+			flagSet:   true,
+			configVal: "config.crt",
+			want:      "flag.crt",
+		},
+		{
+			name:      "config value used when flag not explicitly set",
+			flagVal:   "default.crt",
+			flagSet:   false,
+			configVal: "config.crt",
+			want:      "config.crt",
+		},
+		{
+			name:      "flag default used when neither flag nor config set",
+			flagVal:   "default.crt",
+			flagSet:   false,
+			configVal: "",
+			want:      "default.crt",
+		},
+		{
+			name:      "flag explicitly set to empty still wins over config",
+			flagVal:   "",
+			flagSet:   true,
+			configVal: "config.crt",
+			want:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolvePath(tt.flagVal, tt.flagSet, tt.configVal)
+			if got != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestCompleteArgs_TracksExplicitTLSFlags(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		args          []string
+		wantCrtSet    bool
+		wantKeySet    bool
+		wantRootCASet bool
+	}{
+		{
+			name:       "none set",
+			args:       []string{"id"},
+			wantCrtSet: false, wantKeySet: false, wantRootCASet: false,
+		},
+		{
+			name:       "tls-crt set",
+			args:       []string{"-tls-crt", "custom.crt", "id"},
+			wantCrtSet: true, wantKeySet: false, wantRootCASet: false,
+		},
+		{
+			name:       "all three set",
+			args:       []string{"-tls-crt", "c.crt", "-tls-key", "c.key", "-ca-crt", "ca.crt", "id"},
+			wantCrtSet: true, wantKeySet: true, wantRootCASet: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := Command()
+			if err := cmd.Parse(tt.args); err != nil {
+				t.Fatal(err)
+			}
+			if err := CompleteArgs(cmd); err != nil {
+				t.Fatal(err)
+			}
+			if opts.tlsCrtSet != tt.wantCrtSet {
+				t.Fatalf("expected tlsCrtSet %v, got %v", tt.wantCrtSet, opts.tlsCrtSet)
+			}
+			if opts.tlsKeySet != tt.wantKeySet {
+				t.Fatalf("expected tlsKeySet %v, got %v", tt.wantKeySet, opts.tlsKeySet)
+			}
+			if opts.rootCASet != tt.wantRootCASet {
+				t.Fatalf("expected rootCASet %v, got %v", tt.wantRootCASet, opts.rootCASet)
+			}
+		})
+	}
+}
+
 func TestExpBackoff(t *testing.T) {
 	t.Parallel()
 
@@ -256,8 +355,8 @@ func TestCommand_ClientDefaults(t *testing.T) {
 	if opts.tlsKey != "tls.key" {
 		t.Fatalf("expected default tls-key tls.key, got %s", opts.tlsKey)
 	}
-	if opts.rootCA != "tls.crt" {
-		t.Fatalf("expected default ca-crt tls.crt, got %s", opts.rootCA)
+	if opts.rootCA != "ca.crt" {
+		t.Fatalf("expected default ca-crt ca.crt, got %s", opts.rootCA)
 	}
 	if opts.logLevel != 1 {
 		t.Fatalf("expected default log-level 1, got %d", opts.logLevel)

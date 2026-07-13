@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -47,9 +48,26 @@ type Tunnel struct {
 
 // ClientConfig is a tunnel client configuration.
 type ClientConfig struct {
-	ServerAddr string             `yaml:"server_addr"`
-	Backoff    BackoffConfig      `yaml:"backoff"`
-	Tunnels    map[string]*Tunnel `yaml:"tunnels"`
+	ServerAddr string `yaml:"server_addr"`
+	// TLSCrt, TLSKey, and CACrt are fallbacks used only when the
+	// corresponding -tls-crt/-tls-key/-ca-crt flag isn't passed explicitly
+	// on the command line. A relative path here resolves against this
+	// config file's own directory (not the process's working directory),
+	// so a config file and the certs it references can be moved together.
+	TLSCrt  string             `yaml:"tls_crt,omitempty"`
+	TLSKey  string             `yaml:"tls_key,omitempty"`
+	CACrt   string             `yaml:"ca_crt,omitempty"`
+	Backoff BackoffConfig      `yaml:"backoff"`
+	Tunnels map[string]*Tunnel `yaml:"tunnels"`
+}
+
+// resolveConfigPath returns p unchanged if it's empty or already absolute;
+// otherwise it's resolved relative to the directory containing configFile.
+func resolveConfigPath(configFile, p string) string {
+	if p == "" || filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(filepath.Dir(configFile), p)
 }
 
 func loadClientConfigFromFile(file string) (*ClientConfig, error) {
@@ -70,6 +88,10 @@ func loadClientConfigFromFile(file string) (*ClientConfig, error) {
 	if err = yaml.Unmarshal(buf, &c); err != nil {
 		return nil, fmt.Errorf("failed to parse file %q: %s", file, err)
 	}
+
+	c.TLSCrt = resolveConfigPath(file, c.TLSCrt)
+	c.TLSKey = resolveConfigPath(file, c.TLSKey)
+	c.CACrt = resolveConfigPath(file, c.CACrt)
 
 	if c.ServerAddr == "" {
 		return nil, fmt.Errorf("server_addr: missing")
