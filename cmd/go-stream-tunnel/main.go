@@ -27,7 +27,7 @@ const banner = `
 \____/\____/   /____/\__/_/   \___/\__,_/_/ /_/ /_/   \__/\__,_/_/ /_/_/ /_/\___/_/   
                                                                                       
 `
-const version string = "v1.0.5"
+const version string = "v1.0.6"
 
 const usage1 string = `Usage: go-stream-tunnel server|client|ca [OPTIONS]
 Options:
