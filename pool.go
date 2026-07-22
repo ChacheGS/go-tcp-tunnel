@@ -45,11 +45,30 @@ func (p *connPool) URL(identifier id.ID) string {
 
 func (p *connPool) GetClientConn(req *http.Request, addr string) (*http2.ClientConn, error) {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
+	cp, ok := p.conns[addr]
+	p.mu.RUnlock()
 
-	if cp, ok := p.conns[addr]; ok && cp.clientConn.CanTakeNewRequest() {
+	if !ok {
+		return nil, errClientNotConnected
+	}
+	if cp.clientConn.CanTakeNewRequest() {
 		return cp.clientConn, nil
 	}
+
+	// cp is still registered but can no longer accept new streams (e.g.
+	// it received a GOAWAY, or a stream was never cleaned up and it's
+	// stuck at its peer's concurrent-stream limit). Left alone, every
+	// future request for this identifier would hit the same error
+	// forever, since nothing else periodically re-checks a cached
+	// connection's health once it's in the pool. Evict it now: closing
+	// cp.conn also closes the tunnel client's end of the same physical
+	// socket, so the client notices and reconnects on its own instead of
+	// requiring a human to restart it.
+	p.mu.Lock()
+	if cur, ok := p.conns[addr]; ok && cur.clientConn == cp.clientConn {
+		p.close(cur, addr)
+	}
+	p.mu.Unlock()
 
 	return nil, errClientNotConnected
 }

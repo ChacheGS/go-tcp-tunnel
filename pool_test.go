@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ChacheGS/go-stream-tunnel/id"
 	"golang.org/x/net/http2"
@@ -373,6 +374,96 @@ func TestConnPool_AddConn_ReplaceDead(t *testing.T) {
 
 	// Cleanup
 	p.DeleteConn(identifier)
+}
+
+func TestConnPool_GetClientConn_EvictsStuckConnection(t *testing.T) {
+	t.Parallel()
+
+	// A connection whose peer never advertises room for more than one
+	// concurrent stream, and a handler that blocks until told to finish,
+	// deterministically reproduces "registered but can't take new
+	// requests" without ever actually closing the underlying socket --
+	// exactly the stuck state seen in production, where the pool kept
+	// returning errClientNotConnected forever because nothing evicted the
+	// entry once it stopped being usable.
+	release := make(chan struct{})
+	handlerStarted := make(chan struct{})
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	h2s := &http2.Server{MaxConcurrentStreams: 1}
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		h2s.ServeConn(conn, &http2.ServeConnOpts{
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				close(handlerStarted)
+				<-release
+			}),
+		})
+	}()
+
+	p := newConnPool(&http2.Transport{}, nil)
+	identifier := id.New([]byte("test"))
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.AddConn(conn, identifier); err != nil {
+		t.Fatalf("AddConn failed: %v", err)
+	}
+
+	addr := p.addr(identifier)
+	cc, err := p.GetClientConn(nil, addr)
+	if err != nil {
+		t.Fatalf("first GetClientConn failed: %v", err)
+	}
+
+	// http2 treats MaxConcurrentStreams as effectively unbounded until the
+	// client actually processes the server's SETTINGS frame advertising
+	// it, so wait for that to land before relying on the limit -- without
+	// this the RoundTrip below can race ahead while the client still
+	// thinks the limit is unbounded, making the test flaky.
+	deadline := time.Now().Add(5 * time.Second)
+	for cc.State().MaxConcurrentStreams != 1 {
+		if time.Now().After(deadline) {
+			t.Fatal("client never observed MaxConcurrentStreams=1 from the server")
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, p.URL(identifier), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go cc.RoundTrip(req)
+
+	select {
+	case <-handlerStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handler never started; stream never opened")
+	}
+	defer close(release)
+
+	// The one permitted concurrent stream is now occupied and still
+	// in-flight, so this second call must find the connection unusable.
+	if _, err := p.GetClientConn(nil, addr); err != errClientNotConnected {
+		t.Fatalf("expected errClientNotConnected, got %v", err)
+	}
+
+	p.mu.RLock()
+	_, stillPresent := p.conns[addr]
+	p.mu.RUnlock()
+	if stillPresent {
+		t.Fatal("expected stuck connection to be evicted from the pool, but it's still present")
+	}
 }
 
 func TestConnPool_Identifier_InvalidAddr(t *testing.T) {
